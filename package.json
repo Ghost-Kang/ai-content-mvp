@@ -13,7 +13,8 @@
     "db:push": "drizzle-kit push",
     "db:studio": "drizzle-kit studio",
     "db:smoke": "tsx --env-file=.env.local scripts/smoke-db.ts",
-    "db:probe": "tsx --env-file=.env.local scripts/probe-cross-tenant.ts"
+    "db:probe": "tsx --env-file=.env.local scripts/probe-cross-tenant.ts",
+    "llm:probe": "tsx --env-file=.env.local scripts/probe-llm.ts"
   },
   "dependencies": {
     "@clerk/nextjs": "^6.39.2",

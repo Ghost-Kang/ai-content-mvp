@@ -1,20 +1,23 @@
 import type { LLMRequest, ProviderName, LLMRegion } from './types';
 
+// MVP v2.0: kimi (Moonshot) only, both regions. Other providers remain in
+// the codebase so we can fan out later without a refactor — just add them
+// back into these chains and ensure their env vars are set.
 const ROUTING_TABLE: Record<
   LLMRegion,
   Record<LLMRequest['intent'], ProviderName[]>
 > = {
   CN: {
-    strategy:      ['kimi', 'qwen', 'ernie'],
-    draft:         ['qwen', 'ernie', 'kimi'],
-    channel_adapt: ['qwen', 'kimi', 'ernie'],
-    diff_annotate: ['kimi', 'qwen', 'ernie'],
+    strategy:      ['kimi'],
+    draft:         ['kimi'],
+    channel_adapt: ['kimi'],
+    diff_annotate: ['kimi'],
   },
   INTL: {
-    strategy:      ['anthropic', 'openai'],
-    draft:         ['openai', 'anthropic'],
-    channel_adapt: ['openai', 'anthropic'],
-    diff_annotate: ['anthropic', 'openai'],
+    strategy:      ['kimi'],
+    draft:         ['kimi'],
+    channel_adapt: ['kimi'],
+    diff_annotate: ['kimi'],
   },
 };
 

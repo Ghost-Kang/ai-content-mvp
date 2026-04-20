@@ -16,13 +16,14 @@ export class OpenAIProvider extends BaseLLMProvider {
 
   private apiKey: string;
   private model: string;
-  private baseUrl = 'https://api.openai.com/v1';
+  private baseUrl: string;
 
   constructor() {
     super();
     const config = getProviderConfig('openai');
-    this.apiKey = config.apiKey;
-    this.model = config.model;
+    this.apiKey  = config.apiKey;
+    this.model   = config.model;
+    this.baseUrl = config.baseUrl ?? 'https://api.openai.com/v1';
   }
 
   validateConfig(): void {

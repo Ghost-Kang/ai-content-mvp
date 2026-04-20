@@ -92,13 +92,20 @@ export class KimiProvider extends BaseLLMProvider {
   }
 
   protected normalizeError(raw: unknown): LLMError {
-    const r = raw as { status?: number };
+    const r = raw as { status?: number; error?: { type?: string; message?: string } };
+    const type = r?.error?.type ?? '';
+    const msg  = r?.error?.message ?? '';
+    // Kimi uses 429 for both real rate limits AND billing/quota issues. The
+    // `type` field disambiguates — only retry if it's an actual rate limit.
     if (r?.status === 429) {
+      if (type === 'exceeded_current_quota_error' || /balance|recharge|quota/i.test(msg)) {
+        return new LLMError('AUTH_FAILED', 'kimi', `Kimi quota/billing: ${msg || type}`, false);
+      }
       return new LLMError('RATE_LIMITED', 'kimi', 'Kimi rate limit hit', true);
     }
     if (r?.status === 401) {
       return new LLMError('AUTH_FAILED', 'kimi', 'Kimi auth failed', false);
     }
-    return new LLMError('UNKNOWN', 'kimi', String(raw), true);
+    return new LLMError('UNKNOWN', 'kimi', msg || String(raw), true);
   }
 }
