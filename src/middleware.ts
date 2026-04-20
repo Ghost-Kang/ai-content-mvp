@@ -4,6 +4,7 @@ const isPublicRoute = createRouteMatcher([
   '/sign-in(.*)',
   '/sign-up(.*)',
   '/api/trpc(.*)',  // tRPC handles its own auth; context returns empty for unauthed calls
+  '/api/healthz',   // readiness probe, no auth
 ]);
 
 export default clerkMiddleware((auth, req) => {

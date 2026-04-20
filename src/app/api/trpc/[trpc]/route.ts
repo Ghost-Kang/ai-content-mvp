@@ -10,7 +10,7 @@ const handler = (req: Request) =>
     createContext,
     onError:
       process.env.NODE_ENV === 'development'
-        ? ({ path, error }) => {
+        ? ({ path, error }: { path: string | undefined; error: Error }) => {
             console.error(`tRPC error on ${path ?? '<no-path>'}:`, error);
           }
         : undefined,
