@@ -7,7 +7,7 @@ import { eq } from 'drizzle-orm';
 import type { Context } from './trpc';
 
 export async function createContext(): Promise<Context> {
-  const { userId: clerkUserId, orgId } = await auth();
+  const { userId: clerkUserId, orgId: _orgId } = await auth();
 
   if (!clerkUserId) {
     // Unauthenticated — return minimal context; tenantProcedure will reject

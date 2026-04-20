@@ -82,8 +82,8 @@ export class AnthropicProvider extends BaseLLMProvider {
   }
 
   async stream(
-    request: LLMRequest,
-    onChunk: (chunk: LLMStreamChunk) => void,
+    _request: LLMRequest,
+    _onChunk: (chunk: LLMStreamChunk) => void,
   ): Promise<LLMResponse> {
     // Streaming implementation placeholder — Sprint 1 uses non-streaming complete()
     throw new Error('Streaming not implemented for Sprint 1');

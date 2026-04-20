@@ -3,8 +3,7 @@
 
 import { z } from 'zod';
 import { TRPCError } from '@trpc/server';
-import { eq, and, desc } from 'drizzle-orm';
-import { randomUUID } from 'crypto';
+import { eq, and } from 'drizzle-orm';
 
 import { router, tenantProcedure } from '../trpc';
 import { db, contentSessions, contentScripts } from '@/db';

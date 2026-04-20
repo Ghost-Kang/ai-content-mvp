@@ -32,7 +32,6 @@ export function ScriptResult({
   isRegenerating,
 }: Props) {
   const limits = CHAR_LIMITS[lengthMode];
-  const charRatio = (charCount - limits.min) / (limits.max - limits.min);
   const charStatus =
     charCount < limits.min ? 'under' : charCount > limits.max ? 'over' : 'ok';
 
@@ -77,7 +76,7 @@ export function ScriptResult({
           <ul className="space-y-0.5">
             {suppressionFlags.map((f, i) => (
               <li key={i} className="text-xs text-amber-600">
-                · [{f.category}] "{f.matchedText}"
+                · [{f.category}] &quot;{f.matchedText}&quot;
               </li>
             ))}
           </ul>
