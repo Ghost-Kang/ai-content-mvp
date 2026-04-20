@@ -1,15 +1,22 @@
 import { clerkMiddleware, createRouteMatcher } from '@clerk/nextjs/server';
+import { NextResponse } from 'next/server';
 
 const isPublicRoute = createRouteMatcher([
+  '/',              // landing page
   '/sign-in(.*)',
   '/sign-up(.*)',
   '/api/trpc(.*)',  // tRPC handles its own auth; context returns empty for unauthed calls
   '/api/healthz',   // readiness probe, no auth
 ]);
 
-export default clerkMiddleware((auth, req) => {
-  if (!isPublicRoute(req)) {
-    auth.protect();
+export default clerkMiddleware(async (auth, req) => {
+  if (isPublicRoute(req)) return;
+
+  const { userId } = await auth();
+  if (!userId) {
+    const signInUrl = new URL('/sign-in', req.url);
+    signInUrl.searchParams.set('redirect_url', req.url);
+    return NextResponse.redirect(signInUrl);
   }
 });
 
