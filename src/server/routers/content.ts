@@ -15,6 +15,12 @@ import {
 } from '@/lib/prompts/script-templates';
 import { buildSuppressionScanner } from '@/lib/prompts/suppression-scanner';
 import { buildCacLabel } from '@/lib/cac-label';
+import {
+  fireSessionStarted,
+  fireScriptGenerated,
+  fireScriptApproved,
+  fireScriptExported,
+} from '@/lib/analytics/server';
 
 // ─── Input schemas ─────────────────────────────────────────────────────────────
 
@@ -52,6 +58,13 @@ const ExportInput = z.object({
   format:    z.enum(['plain', 'storyboard']).default('storyboard'),
 });
 
+const TrackExportInput = z.object({
+  sessionId: z.string().uuid(),
+  format:    z.enum(['plain', 'storyboard']),
+  action:    z.enum(['copy', 'download']),
+  charCount: z.number().int().nonnegative(),
+});
+
 // ─── Router ───────────────────────────────────────────────────────────────────
 
 export const contentRouter = router({
@@ -76,6 +89,18 @@ export const contentRouter = router({
         .returning({ id: contentSessions.id });
 
       const estimatedGenerationSeconds = input.lengthMode === 'short' ? 15 : 30;
+
+      try {
+        fireSessionStarted(ctx.userId, {
+          tenantId:   ctx.tenantId,
+          region:     ctx.region,
+          plan:       ctx.plan,
+          sessionId:  session.id,
+          entryPoint: input.entryPoint,
+        });
+      } catch (e) {
+        console.warn('[analytics] fireSessionStarted failed', e);
+      }
 
       return {
         sessionId: session.id,
@@ -250,6 +275,26 @@ export const contentRouter = router({
         .set({ status: 'draft', updatedAt: new Date() })
         .where(eq(contentSessions.id, session.id));
 
+      try {
+        fireScriptGenerated(ctx.userId, {
+          tenantId:   ctx.tenantId,
+          region:     ctx.region,
+          plan:       ctx.plan,
+          sessionId:  session.id,
+          scriptId:   script.id,
+          formula:    session.formula,
+          lengthMode: session.lengthMode,
+          charCount:  bestAttempt.charCount,
+          frameCount: bestAttempt.frameCount,
+          provider:   bestAttempt.provider,
+          latencyMs:  bestAttempt.llmLatencyMs,
+          retryCount,
+          suppressionFlagCount: suppressionFlags.length,
+        });
+      } catch (e) {
+        console.warn('[analytics] fireScriptGenerated failed', e);
+      }
+
       return {
         scriptId:            script.id,
         frames:              bestAttempt.parsed.frames,
@@ -316,7 +361,7 @@ export const contentRouter = router({
       }
 
       const [session] = await db
-        .select({ id: contentSessions.id, status: contentSessions.status })
+        .select()
         .from(contentSessions)
         .where(
           and(
@@ -336,10 +381,38 @@ export const contentRouter = router({
         });
       }
 
+      const [script] = await db
+        .select({ id: contentScripts.id, qualityIssue: contentScripts.qualityIssue })
+        .from(contentScripts)
+        .where(
+          and(
+            eq(contentScripts.sessionId, session.id),
+            eq(contentScripts.isCurrent, true),
+          ),
+        )
+        .limit(1);
+
       await db
         .update(contentSessions)
         .set({ status: 'approved', updatedAt: new Date() })
         .where(eq(contentSessions.id, session.id));
+
+      if (script) {
+        try {
+          fireScriptApproved(ctx.userId, {
+            tenantId:   ctx.tenantId,
+            region:     ctx.region,
+            plan:       ctx.plan,
+            sessionId:  session.id,
+            scriptId:   script.id,
+            formula:    session.formula,
+            lengthMode: session.lengthMode,
+            hadQualityIssue: script.qualityIssue != null,
+          });
+        } catch (e) {
+          console.warn('[analytics] fireScriptApproved failed', e);
+        }
+      }
 
       return { sessionId: session.id, status: 'approved' as const };
     }),
@@ -414,6 +487,26 @@ export const contentRouter = router({
         frameCount: script.frameCount,
         cacLabel,
       };
+    }),
+
+  // W3-08: Client-triggered export tracking (copy or download)
+  trackExport: tenantProcedure
+    .input(TrackExportInput)
+    .mutation(({ ctx, input }) => {
+      try {
+        fireScriptExported(ctx.userId, {
+          tenantId:  ctx.tenantId,
+          region:    ctx.region,
+          plan:      ctx.plan,
+          sessionId: input.sessionId,
+          format:    input.format,
+          action:    input.action,
+          charCount: input.charCount,
+        });
+      } catch (e) {
+        console.warn('[analytics] fireScriptExported failed', e);
+      }
+      return { ok: true as const };
     }),
 
   // Get full session with current script

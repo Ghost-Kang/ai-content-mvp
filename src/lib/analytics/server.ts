@@ -66,6 +66,41 @@ export function fireScriptGenerated(
   });
 }
 
+// W3-08
+export function fireScriptApproved(
+  userId: string,
+  props: BaseProperties & {
+    sessionId: string;
+    scriptId:  string;
+    formula:   'provocation' | 'insight';
+    lengthMode: 'short' | 'long';
+    hadQualityIssue: boolean;
+  },
+) {
+  getPostHog().capture({
+    distinctId: userId,
+    event: 'script_approved',
+    properties: props,
+  });
+}
+
+// W3-08
+export function fireScriptExported(
+  userId: string,
+  props: BaseProperties & {
+    sessionId: string;
+    format:    'storyboard' | 'plain';
+    action:    'copy' | 'download';
+    charCount: number;
+  },
+) {
+  getPostHog().capture({
+    distinctId: userId,
+    event: 'script_exported',
+    properties: props,
+  });
+}
+
 export function shutdown() {
   return _posthog?.shutdown();
 }

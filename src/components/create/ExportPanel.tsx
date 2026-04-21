@@ -19,6 +19,7 @@ export function ExportPanel({ sessionId }: Props) {
     { sessionId, format },
     { staleTime: 0 },
   );
+  const trackExport = trpc.content.trackExport.useMutation();
 
   async function handleCopy() {
     if (!data) return;
@@ -26,6 +27,7 @@ export function ExportPanel({ sessionId }: Props) {
       await navigator.clipboard.writeText(data.content);
       setCopyState('copied');
       setTimeout(() => setCopyState('idle'), 2000);
+      trackExport.mutate({ sessionId, format, action: 'copy', charCount: data.charCount });
     } catch {
       setCopyState('error');
       setTimeout(() => setCopyState('idle'), 2000);
@@ -43,6 +45,7 @@ export function ExportPanel({ sessionId }: Props) {
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
+    trackExport.mutate({ sessionId, format, action: 'download', charCount: data.charCount });
   }
 
   return (
