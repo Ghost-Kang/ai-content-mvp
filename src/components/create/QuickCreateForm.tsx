@@ -10,6 +10,7 @@ import { ScriptReviewChecklist } from './ScriptReviewChecklist';
 import { ExportPanel } from './ExportPanel';
 import { trpc } from '@/lib/trpc-client';
 import type { Formula, LengthMode } from '@/lib/prompts/script-templates';
+import { friendlyFromAny } from '@/lib/error-messages';
 
 type Step = 'form' | 'generating' | 'result' | 'approved';
 
@@ -48,7 +49,8 @@ export function QuickCreateForm() {
       setStep('approved');
     } catch (err) {
       console.error(err);
-      setErrorMessage(err instanceof Error ? err.message : '通过失败');
+      const f = friendlyFromAny(err);
+      setErrorMessage(`${f.title}：${f.detail}`);
     }
   }
 
@@ -85,7 +87,8 @@ export function QuickCreateForm() {
       setStep('result');
     } catch (err) {
       console.error(err);
-      setErrorMessage(err instanceof Error ? err.message : '生成失败，请稍后重试');
+      const f = friendlyFromAny(err);
+      setErrorMessage(`${f.title}：${f.detail}`);
       setStep('form');
     }
   }
@@ -103,7 +106,8 @@ export function QuickCreateForm() {
       setStep('result');
     } catch (err) {
       console.error(err);
-      setErrorMessage(err instanceof Error ? err.message : '重新生成失败');
+      const f = friendlyFromAny(err);
+      setErrorMessage(`${f.title}：${f.detail}`);
       setStep('result');
     }
   }

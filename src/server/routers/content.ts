@@ -15,6 +15,8 @@ import {
 } from '@/lib/prompts/script-templates';
 import { buildSuppressionScanner } from '@/lib/prompts/suppression-scanner';
 import { buildCacLabel } from '@/lib/cac-label';
+import { LLMError } from '@/lib/llm/types';
+import { friendlyFromLLMError } from '@/lib/error-messages';
 import {
   fireSessionStarted,
   fireScriptGenerated,
@@ -183,14 +185,38 @@ export const contentRouter = router({
           });
         }
 
-        const llmResponse = await executeWithFallback({
-          messages,
-          intent:   'draft',
-          tenantId: ctx.tenantId,
-          region:   ctx.region,
-          maxTokens: session.lengthMode === 'short' ? 1500 : 4000,
-          temperature: retryCount === 0 ? 0.6 : 0.3,
-        });
+        let llmResponse;
+        try {
+          llmResponse = await executeWithFallback({
+            messages,
+            intent:   'draft',
+            tenantId: ctx.tenantId,
+            region:   ctx.region,
+            maxTokens: session.lengthMode === 'short' ? 1500 : 4000,
+            temperature: retryCount === 0 ? 0.6 : 0.3,
+          });
+        } catch (e) {
+          if (e instanceof LLMError) {
+            const f = friendlyFromLLMError(e);
+            // Non-retryable upstream errors (auth/balance/filter) should not
+            // exhaust retry budget — surface immediately with friendly detail.
+            if (!e.retryable) {
+              await db.update(contentSessions)
+                .set({ status: 'draft', updatedAt: new Date() })
+                .where(eq(contentSessions.id, session.id));
+              throw new TRPCError({
+                code: f.code === 'LLM_CONTEXT_TOO_LONG' ? 'BAD_REQUEST' : 'INTERNAL_SERVER_ERROR',
+                message: `${f.title}：${f.detail}`,
+              });
+            }
+            // Retryable (rate limit / transient) — log and count as one retry.
+            console.warn(`[generateScript] LLM retryable error: ${f.code} ${f.detail}`);
+            retryCount++;
+            lastFeedback = '上次请求因服务端问题失败，请重新生成，只输出 JSON。';
+            continue;
+          }
+          throw e; // non-LLM error — bubble up to tRPC default handler
+        }
         const llmLatencyMs = Date.now() - llmStart;
 
         let parsed: GeneratedScript;
