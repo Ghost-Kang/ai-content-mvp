@@ -336,10 +336,14 @@ ${rowLines}
 `;
 }
 
+const SAMPLE_COOLDOWN_MS = 2000;
+const RATE_LIMIT_COOLDOWN_MS = 30_000;
+
 async function main() {
   console.log(`🔍 Running W4-03 audit on ${CASES.length} samples...\n`);
 
   const rows: AuditRow[] = [];
+  let consecutiveRateLimits = 0;
   for (let i = 0; i < CASES.length; i++) {
     const c = CASES[i];
     process.stdout.write(`  [${i + 1}/${CASES.length}] ${c.id} · ${c.industry} · ${c.formula}... `);
@@ -347,6 +351,21 @@ async function main() {
     rows.push(row);
     const icon = row.outcome === 'valid' ? '✅' : row.outcome === 'degraded' ? '⚠️' : '❌';
     console.log(`${icon} chars=${row.charCount} frames=${row.frameCount} retries=${row.retryCount} flags=${row.suppressionFlags.length} (${row.latencyMs}ms)`);
+
+    const hitRate =
+      row.outcome === 'error' &&
+      (row.qualityIssue?.includes('rate limit') || row.errorCode === 'RATE_LIMITED');
+    consecutiveRateLimits = hitRate ? consecutiveRateLimits + 1 : 0;
+
+    if (i < CASES.length - 1) {
+      if (consecutiveRateLimits >= 2) {
+        console.log(`    ↳ rate-limit 冷却 ${RATE_LIMIT_COOLDOWN_MS / 1000}s...`);
+        await new Promise((r) => setTimeout(r, RATE_LIMIT_COOLDOWN_MS));
+        consecutiveRateLimits = 0;
+      } else {
+        await new Promise((r) => setTimeout(r, SAMPLE_COOLDOWN_MS));
+      }
+    }
   }
 
   const report = formatReport(rows);
