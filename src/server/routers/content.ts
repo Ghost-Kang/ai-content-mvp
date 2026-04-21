@@ -35,6 +35,17 @@ const GetStatusInput = z.object({
   sessionId: z.string().uuid(),
 });
 
+const ApproveInput = z.object({
+  sessionId:  z.string().uuid(),
+  checklist:  z.object({
+    voice:       z.boolean(),
+    rhythm:      z.boolean(),
+    suppression: z.boolean(),
+    facts:       z.boolean(),
+    hook:        z.boolean(),
+  }),
+});
+
 // ─── Router ───────────────────────────────────────────────────────────────────
 
 export const contentRouter = router({
@@ -281,6 +292,48 @@ export const contentRouter = router({
         status:   session.status,
         scriptId: script[0]?.id ?? null,
       };
+    }),
+
+  // W3-02: Approve current draft, transition session → approved
+  // Solo mode: requires all 5 checklist items true.
+  approve: tenantProcedure
+    .input(ApproveInput)
+    .mutation(async ({ ctx, input }) => {
+      const allChecked = Object.values(input.checklist).every(Boolean);
+      if (!allChecked) {
+        throw new TRPCError({
+          code: 'BAD_REQUEST',
+          message: '必须完成全部 5 项自审才能通过',
+        });
+      }
+
+      const [session] = await db
+        .select({ id: contentSessions.id, status: contentSessions.status })
+        .from(contentSessions)
+        .where(
+          and(
+            eq(contentSessions.id, input.sessionId),
+            eq(contentSessions.tenantId, ctx.tenantId),
+          ),
+        )
+        .limit(1);
+
+      if (!session) {
+        throw new TRPCError({ code: 'NOT_FOUND', message: 'Session not found' });
+      }
+      if (session.status !== 'draft' && session.status !== 'reviewing') {
+        throw new TRPCError({
+          code: 'BAD_REQUEST',
+          message: `无法从状态 "${session.status}" 转到 approved`,
+        });
+      }
+
+      await db
+        .update(contentSessions)
+        .set({ status: 'approved', updatedAt: new Date() })
+        .where(eq(contentSessions.id, session.id));
+
+      return { sessionId: session.id, status: 'approved' as const };
     }),
 
   // Get full session with current script
