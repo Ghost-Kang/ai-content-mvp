@@ -6,12 +6,17 @@ interface BreakerConfig {
   failureThreshold: number;
   successThreshold: number;
   timeoutMs: number;
+  rateLimitTimeoutMs: number;
 }
 
 const DEFAULTS: BreakerConfig = {
   failureThreshold: 3,
   successThreshold: 1,
   timeoutMs: 30_000,
+  // Rate limit windows are typically longer than transient errors — Kimi's 429s
+  // often clear in 45-60s. Short-circuiting for 30s means the retry burns the
+  // quota before it actually resets.
+  rateLimitTimeoutMs: 60_000,
 };
 
 class CircuitBreaker {
@@ -19,21 +24,31 @@ class CircuitBreaker {
   private failureCount = 0;
   private successCount = 0;
   private lastFailureTime = 0;
+  private currentTimeoutMs: number;
 
   constructor(
     private readonly providerName: string,
     private readonly config: BreakerConfig = DEFAULTS,
-  ) {}
+  ) {
+    this.currentTimeoutMs = config.timeoutMs;
+  }
 
   isOpen(): boolean {
     if (this.state === 'OPEN') {
-      if (Date.now() - this.lastFailureTime > this.config.timeoutMs) {
+      if (Date.now() - this.lastFailureTime > this.currentTimeoutMs) {
         this.state = 'HALF_OPEN';
         return false;
       }
       return true;
     }
     return false;
+  }
+
+  /** Milliseconds until the breaker transitions to HALF_OPEN. 0 if not OPEN. */
+  msUntilReset(): number {
+    if (this.state !== 'OPEN') return 0;
+    const elapsed = Date.now() - this.lastFailureTime;
+    return Math.max(0, this.currentTimeoutMs - elapsed);
   }
 
   recordSuccess(): void {
@@ -51,11 +66,13 @@ class CircuitBreaker {
     this.lastFailureTime = Date.now();
     if (error.code === 'RATE_LIMITED') {
       this.state = 'OPEN';
+      this.currentTimeoutMs = this.config.rateLimitTimeoutMs;
       return;
     }
     this.failureCount++;
     if (this.failureCount >= this.config.failureThreshold) {
       this.state = 'OPEN';
+      this.currentTimeoutMs = this.config.timeoutMs;
     }
   }
 }

@@ -176,10 +176,23 @@ async function runCase(c: Case): Promise<AuditRow> {
         temperature: attempt === 0 ? 0.6 : 0.3,
       });
     } catch (e) {
+      // Non-retryable (auth/content-policy) — fail fast.
       if (e instanceof LLMError && !e.retryable) {
         return {
           id: c.id, industry: c.industry, formula: c.formula, productName: c.productName,
           outcome: 'error', errorCode: e.code,
+          charCount: 0, frameCount: 0, retryCount, distance: 999,
+          suppressionFlags: [], latencyMs: Date.now() - t0,
+          provider: 'none', qualityIssue: e.message,
+        };
+      }
+      // Rate-limited or all-providers-cooling — retrying within this case
+      // just hits the open circuit breaker. Surface as RATE_LIMITED so the
+      // outer loop triggers the 65s cooldown.
+      if (e instanceof LLMError && e.code === 'RATE_LIMITED') {
+        return {
+          id: c.id, industry: c.industry, formula: c.formula, productName: c.productName,
+          outcome: 'error', errorCode: 'RATE_LIMITED',
           charCount: 0, frameCount: 0, retryCount, distance: 999,
           suppressionFlags: [], latencyMs: Date.now() - t0,
           provider: 'none', qualityIssue: e.message,
@@ -337,13 +350,12 @@ ${rowLines}
 }
 
 const SAMPLE_COOLDOWN_MS = 2000;
-const RATE_LIMIT_COOLDOWN_MS = 30_000;
+const RATE_LIMIT_COOLDOWN_MS = 65_000; // circuit breaker rateLimitTimeoutMs (60s) + 5s buffer
 
 async function main() {
   console.log(`🔍 Running W4-03 audit on ${CASES.length} samples...\n`);
 
   const rows: AuditRow[] = [];
-  let consecutiveRateLimits = 0;
   for (let i = 0; i < CASES.length; i++) {
     const c = CASES[i];
     process.stdout.write(`  [${i + 1}/${CASES.length}] ${c.id} · ${c.industry} · ${c.formula}... `);
@@ -354,14 +366,14 @@ async function main() {
 
     const hitRate =
       row.outcome === 'error' &&
-      (row.qualityIssue?.includes('rate limit') || row.errorCode === 'RATE_LIMITED');
-    consecutiveRateLimits = hitRate ? consecutiveRateLimits + 1 : 0;
+      (row.errorCode === 'RATE_LIMITED' ||
+        row.qualityIssue?.includes('rate limit') ||
+        row.qualityIssue?.includes('cooling down'));
 
     if (i < CASES.length - 1) {
-      if (consecutiveRateLimits >= 2) {
-        console.log(`    ↳ rate-limit 冷却 ${RATE_LIMIT_COOLDOWN_MS / 1000}s...`);
+      if (hitRate) {
+        console.log(`    ↳ rate-limit 冷却 ${RATE_LIMIT_COOLDOWN_MS / 1000}s（一次撞墙立即退让）...`);
         await new Promise((r) => setTimeout(r, RATE_LIMIT_COOLDOWN_MS));
-        consecutiveRateLimits = 0;
       } else {
         await new Promise((r) => setTimeout(r, SAMPLE_COOLDOWN_MS));
       }
