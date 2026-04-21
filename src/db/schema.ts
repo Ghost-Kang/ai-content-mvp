@@ -133,6 +133,8 @@ export const contentScripts = pgTable(
     frameCount: integer('frame_count').notNull(),
     // Raw full script text for backward compat and search
     fullText:   text('full_text').notNull(),
+    commentBaitQuestion: text('comment_bait_question'),
+    qualityIssue:        text('quality_issue'),
     provider:   text('provider').notNull(),    // which LLM produced this
     model:      text('model').notNull(),
     latencyMs:  integer('latency_ms'),

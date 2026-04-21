@@ -14,6 +14,7 @@ import {
   type GeneratedScript,
 } from '@/lib/prompts/script-templates';
 import { buildSuppressionScanner } from '@/lib/prompts/suppression-scanner';
+import { buildCacLabel } from '@/lib/cac-label';
 
 // ─── Input schemas ─────────────────────────────────────────────────────────────
 
@@ -44,6 +45,11 @@ const ApproveInput = z.object({
     facts:       z.boolean(),
     hook:        z.boolean(),
   }),
+});
+
+const ExportInput = z.object({
+  sessionId: z.string().uuid(),
+  format:    z.enum(['plain', 'storyboard']).default('storyboard'),
 });
 
 // ─── Router ───────────────────────────────────────────────────────────────────
@@ -223,17 +229,19 @@ export const contentRouter = router({
       const [script] = await db
         .insert(contentScripts)
         .values({
-          sessionId:  session.id,
-          tenantId:   ctx.tenantId,
-          frames:     bestAttempt.parsed.frames,
-          charCount:  bestAttempt.charCount,
-          frameCount: bestAttempt.frameCount,
-          fullText:   bestAttempt.fullText,
-          provider:   bestAttempt.provider,
-          model:      bestAttempt.model,
-          latencyMs:  bestAttempt.llmLatencyMs,
+          sessionId:           session.id,
+          tenantId:            ctx.tenantId,
+          frames:              bestAttempt.parsed.frames,
+          charCount:           bestAttempt.charCount,
+          frameCount:          bestAttempt.frameCount,
+          fullText:            bestAttempt.fullText,
+          commentBaitQuestion: bestAttempt.parsed.commentBaitQuestion ?? null,
+          qualityIssue:        bestAttempt.issue,
+          provider:            bestAttempt.provider,
+          model:               bestAttempt.model,
+          latencyMs:           bestAttempt.llmLatencyMs,
           retryCount,
-          isCurrent:  true,
+          isCurrent:           true,
         })
         .returning();
 
@@ -334,6 +342,78 @@ export const contentRouter = router({
         .where(eq(contentSessions.id, session.id));
 
       return { sessionId: session.id, status: 'approved' as const };
+    }),
+
+  // W3-03 + W3-04: Export approved (or draft) script to plain text with CAC label
+  // - storyboard: frame-by-frame with visual directions and timecodes
+  // - plain: prose-only, comment bait appended
+  // Both always end with CAC AI-disclosure label.
+  export: tenantProcedure
+    .input(ExportInput)
+    .query(async ({ ctx, input }) => {
+      const [session] = await db
+        .select()
+        .from(contentSessions)
+        .where(
+          and(
+            eq(contentSessions.id, input.sessionId),
+            eq(contentSessions.tenantId, ctx.tenantId),
+          ),
+        )
+        .limit(1);
+
+      if (!session) {
+        throw new TRPCError({ code: 'NOT_FOUND', message: 'Session not found' });
+      }
+
+      const [script] = await db
+        .select()
+        .from(contentScripts)
+        .where(
+          and(
+            eq(contentScripts.sessionId, input.sessionId),
+            eq(contentScripts.isCurrent, true),
+          ),
+        )
+        .limit(1);
+
+      if (!script) {
+        throw new TRPCError({ code: 'NOT_FOUND', message: 'No script found for this session' });
+      }
+
+      const frames = script.frames as { index: number; text: string; visualDirection: string; durationS: number }[];
+      const cacLabel = buildCacLabel(input.format === 'plain' ? 'caption' : 'video');
+      const commentBait = script.commentBaitQuestion?.trim() ?? '';
+
+      let body: string;
+      if (input.format === 'storyboard') {
+        const header = `【${session.productName}】抖音 60 秒脚本\n目标受众：${session.targetAudience}\n核心主张：${session.coreClaim}\n公式：${session.formula === 'provocation' ? '挑衅断言型' : '日常现象洞察型'}\n字数：${script.charCount} 字 · ${script.frameCount} 帧`;
+
+        let cursor = 0;
+        const frameLines = frames.map((f) => {
+          const start = cursor;
+          cursor += f.durationS;
+          const mmss = (s: number) => `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
+          return `[帧 ${f.index} · ${mmss(start)}-${mmss(cursor)}]\n画面：${f.visualDirection}\n口播：${f.text}`;
+        }).join('\n\n');
+
+        const commentBlock = commentBait ? `\n\n—— 评论引导 ——\n${commentBait}` : '';
+        body = `${header}\n\n${frameLines}${commentBlock}`;
+      } else {
+        const commentBlock = commentBait ? `\n\n评论引导：${commentBait}` : '';
+        body = `${session.productName}\n\n${script.fullText}${commentBlock}`;
+      }
+
+      const filename = `${session.productName.replace(/[^\w\u4e00-\u9fa5]+/g, '_')}_${new Date().toISOString().slice(0, 10)}.txt`;
+      const content  = `${body}\n\n${cacLabel}`;
+
+      return {
+        filename,
+        content,
+        charCount:  script.charCount,
+        frameCount: script.frameCount,
+        cacLabel,
+      };
     }),
 
   // Get full session with current script

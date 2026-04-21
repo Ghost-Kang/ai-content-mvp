@@ -7,6 +7,7 @@ import { FormulaSelector } from './FormulaSelector';
 import { LengthToggle } from './LengthToggle';
 import { ScriptResult } from './ScriptResult';
 import { ScriptReviewChecklist } from './ScriptReviewChecklist';
+import { ExportPanel } from './ExportPanel';
 import { trpc } from '@/lib/trpc-client';
 import type { Formula, LengthMode } from '@/lib/prompts/script-templates';
 
@@ -176,29 +177,39 @@ export function QuickCreateForm() {
 
   // ─── Approved state ──────────────────────────────────────────────────────────
 
-  if (step === 'approved' && result) {
+  if (step === 'approved' && result && sessionId) {
     return (
       <div className="max-w-2xl mx-auto">
         <div className="mb-6 rounded-xl border border-green-200 bg-green-50 p-5">
           <p className="text-sm font-medium text-green-900">✓ 脚本已通过自审</p>
           <p className="mt-1 text-xs text-green-700">
-            下一步：复制脚本到抖音创作工具或导出 .txt（导出功能 W3-03 开发中）
+            复制到抖音创作工具，或下载 .txt 备份。导出内容自动附加 CAC 合规声明。
           </p>
         </div>
-        <ScriptResult
-          frames={result.frames}
-          charCount={result.charCount}
-          frameCount={result.frameCount}
-          commentBaitQuestion={result.commentBaitQuestion}
-          suppressionFlags={result.suppressionFlags}
-          lengthMode={lengthMode}
-          onRegenerate={handleRegenerate}
-          isRegenerating={generateScript.isPending}
-        />
+        <div className="mb-6">
+          <ExportPanel sessionId={sessionId} />
+        </div>
+        <details className="mb-6">
+          <summary className="cursor-pointer text-sm text-gray-500 hover:text-gray-700">
+            查看脚本详情
+          </summary>
+          <div className="mt-3">
+            <ScriptResult
+              frames={result.frames}
+              charCount={result.charCount}
+              frameCount={result.frameCount}
+              commentBaitQuestion={result.commentBaitQuestion}
+              suppressionFlags={result.suppressionFlags}
+              lengthMode={lengthMode}
+              onRegenerate={handleRegenerate}
+              isRegenerating={generateScript.isPending}
+            />
+          </div>
+        </details>
         <button
           type="button"
           onClick={() => { setStep('form'); setResult(null); setSessionId(null); }}
-          className="mt-6 w-full rounded-lg border border-gray-200 py-2.5 text-sm text-gray-600 hover:border-gray-300"
+          className="w-full rounded-lg border border-gray-200 py-2.5 text-sm text-gray-600 hover:border-gray-300"
         >
           创建新脚本
         </button>
