@@ -41,7 +41,7 @@ export function getProviderConfig(name: ProviderName): ProviderConfig {
       return {
         apiKey:     requireEnv('KIMI_API_KEY'),
         baseUrl:    'https://api.moonshot.cn/v1',
-        model:      process.env.KIMI_MODEL ?? 'moonshot-v1-8k',
+        model:      process.env.KIMI_MODEL ?? 'moonshot-v1-32k',
         maxRetries: 3,
       };
   }

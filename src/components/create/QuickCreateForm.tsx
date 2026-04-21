@@ -27,7 +27,9 @@ export function QuickCreateForm() {
     suppressionFlags: { category: string; matchedText: string; position: number }[];
     provider: string;
     retryCount: number;
+    qualityIssue: string | null;
   } | null>(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const createSession = trpc.content.create.useMutation();
   const generateScript = trpc.content.generateScript.useMutation();
@@ -43,6 +45,7 @@ export function QuickCreateForm() {
     if (!formula || !canSubmit) return;
 
     setStep('generating');
+    setErrorMessage(null);
 
     try {
       const session = await createSession.mutateAsync({
@@ -64,13 +67,15 @@ export function QuickCreateForm() {
       setStep('result');
     } catch (err) {
       console.error(err);
-      setStep('form'); // Return to form on error
+      setErrorMessage(err instanceof Error ? err.message : '生成失败，请稍后重试');
+      setStep('form');
     }
   }
 
   async function handleRegenerate() {
     if (!sessionId) return;
     setStep('generating');
+    setErrorMessage(null);
     try {
       const script = await generateScript.mutateAsync({
         sessionId,
@@ -80,6 +85,7 @@ export function QuickCreateForm() {
       setStep('result');
     } catch (err) {
       console.error(err);
+      setErrorMessage(err instanceof Error ? err.message : '重新生成失败');
       setStep('result');
     }
   }
@@ -113,6 +119,19 @@ export function QuickCreateForm() {
             重新开始
           </button>
         </div>
+        {result.qualityIssue && (
+          <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+            <p className="font-medium">质量提示</p>
+            <p className="mt-0.5 text-xs text-amber-700">
+              {result.qualityIssue} — 内容已生成但未完全合规，建议手动调整或重新生成。
+            </p>
+          </div>
+        )}
+        {errorMessage && (
+          <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+            {errorMessage}
+          </div>
+        )}
         <ScriptResult
           frames={result.frames}
           charCount={result.charCount}
@@ -136,6 +155,12 @@ export function QuickCreateForm() {
 
   return (
     <form onSubmit={handleSubmit} className="max-w-2xl mx-auto space-y-6">
+      {errorMessage && (
+        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          <p className="font-medium">生成失败</p>
+          <p className="mt-0.5 text-xs text-red-600">{errorMessage}</p>
+        </div>
+      )}
       <LengthToggle value={lengthMode} onChange={setLengthMode} />
       <FormulaSelector value={formula} onChange={setFormula} />
 

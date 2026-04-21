@@ -104,25 +104,53 @@ export const contentRouter = router({
       });
 
       const MAX_RETRIES = 3;
-      let lastError: Error | null = null;
+      let lastFeedback: string | null = null;
       let retryCount = 0;
+
+      // Track the best attempt across retries. If all 3 fail validation, we
+      // still return the closest-to-target script with a qualityIssue flag so
+      // the slice demo completes end-to-end. Hard failure only when zero
+      // attempts produced valid JSON.
+      type Attempt = {
+        parsed: GeneratedScript;
+        fullText: string;
+        charCount: number;
+        frameCount: number;
+        provider: string;
+        model: string;
+        llmLatencyMs: number;
+        issue: string | null;
+        distance: number;
+      };
+      let bestAttempt: Attempt | null = null;
+
+      const CHAR_TARGET_LO = 190;
+      const CHAR_TARGET_HI = 215;
 
       while (retryCount < MAX_RETRIES) {
         const llmStart = Date.now();
 
+        const messages = [
+          { role: 'system' as const, content: systemPrompt },
+          { role: 'user'   as const, content: userPrompt },
+        ];
+        if (lastFeedback) {
+          messages.push({
+            role: 'user' as const,
+            content: `上次输出不合规：${lastFeedback}\n目标字数 190-215（含），最理想 200-210 字。请精确控制，避免过度修正。只输出 JSON。`,
+          });
+        }
+
         const llmResponse = await executeWithFallback({
-          messages: [
-            { role: 'system', content: systemPrompt },
-            { role: 'user',   content: userPrompt },
-          ],
+          messages,
           intent:   'draft',
           tenantId: ctx.tenantId,
           region:   ctx.region,
           maxTokens: session.lengthMode === 'short' ? 1500 : 4000,
-          temperature: 0.75,
+          temperature: retryCount === 0 ? 0.6 : 0.3,
         });
+        const llmLatencyMs = Date.now() - llmStart;
 
-        // Parse JSON response
         let parsed: GeneratedScript;
         try {
           const raw = llmResponse.content
@@ -132,70 +160,88 @@ export const contentRouter = router({
           parsed = JSON.parse(raw);
         } catch {
           retryCount++;
-          lastError = new Error('LLM returned non-JSON output');
+          lastFeedback = '你上次的输出不是合法 JSON。请只输出一个 JSON 对象，不要加任何解释或 markdown 代码块。';
           continue;
         }
 
-        const fullText = parsed.frames.map((f) => f.text).join('');
-        const validation = validateScriptLength(
-          fullText,
-          parsed.frames.length,
-          session.lengthMode,
-        );
+        const fullText   = parsed.frames.map((f) => f.text).join('');
+        const charCount  = fullText.replace(/\s/g, '').length;
+        const frameCount = parsed.frames.length;
+        const validation = validateScriptLength(fullText, frameCount, session.lengthMode);
+
+        // Track closest-to-target for graceful degradation
+        const distance = charCount < CHAR_TARGET_LO
+          ? CHAR_TARGET_LO - charCount
+          : charCount > CHAR_TARGET_HI
+            ? charCount - CHAR_TARGET_HI
+            : 0;
+        if (!bestAttempt || distance < bestAttempt.distance) {
+          bestAttempt = {
+            parsed, fullText, charCount, frameCount,
+            provider: llmResponse.provider,
+            model:    llmResponse.model,
+            llmLatencyMs,
+            issue:    validation.valid ? null : (validation.issue ?? null),
+            distance,
+          };
+        }
 
         if (!validation.valid) {
           retryCount++;
-          lastError = new Error(validation.issue ?? 'Validation failed');
+          lastFeedback = validation.issue ?? '字数或帧数不合规';
           continue;
         }
 
-        // ENG-019: Post-generation suppression scan (soft check — flag but don't block)
-        const suppressionFlags = buildSuppressionScanner(fullText);
+        break; // valid — fall through to persist below
+      }
 
-        const [script] = await db
-          .insert(contentScripts)
-          .values({
-            sessionId:  session.id,
-            tenantId:   ctx.tenantId,
-            frames:     parsed.frames,
-            charCount:  validation.charCount,
-            frameCount: parsed.frames.length,
-            fullText,
-            provider:   llmResponse.provider,
-            model:      llmResponse.model,
-            latencyMs:  Date.now() - llmStart,
-            retryCount,
-            isCurrent:  true,
-          })
-          .returning();
-
+      if (!bestAttempt) {
         await db
           .update(contentSessions)
           .set({ status: 'draft', updatedAt: new Date() })
           .where(eq(contentSessions.id, session.id));
-
-        return {
-          scriptId:           script.id,
-          frames:             parsed.frames,
-          charCount:          validation.charCount,
-          frameCount:         parsed.frames.length,
-          commentBaitQuestion: parsed.commentBaitQuestion,
-          suppressionFlags,
-          provider:           llmResponse.provider,
-          retryCount,
-        };
+        throw new TRPCError({
+          code: 'INTERNAL_SERVER_ERROR',
+          message: 'LLM returned no parseable output in any retry',
+        });
       }
 
-      // All retries exhausted
+      // Persist best attempt (valid or degraded)
+      const suppressionFlags = buildSuppressionScanner(bestAttempt.fullText);
+
+      const [script] = await db
+        .insert(contentScripts)
+        .values({
+          sessionId:  session.id,
+          tenantId:   ctx.tenantId,
+          frames:     bestAttempt.parsed.frames,
+          charCount:  bestAttempt.charCount,
+          frameCount: bestAttempt.frameCount,
+          fullText:   bestAttempt.fullText,
+          provider:   bestAttempt.provider,
+          model:      bestAttempt.model,
+          latencyMs:  bestAttempt.llmLatencyMs,
+          retryCount,
+          isCurrent:  true,
+        })
+        .returning();
+
       await db
         .update(contentSessions)
         .set({ status: 'draft', updatedAt: new Date() })
         .where(eq(contentSessions.id, session.id));
 
-      throw new TRPCError({
-        code: 'INTERNAL_SERVER_ERROR',
-        message: `Script generation failed after ${MAX_RETRIES} attempts: ${lastError?.message}`,
-      });
+      return {
+        scriptId:            script.id,
+        frames:              bestAttempt.parsed.frames,
+        charCount:           bestAttempt.charCount,
+        frameCount:          bestAttempt.frameCount,
+        commentBaitQuestion: bestAttempt.parsed.commentBaitQuestion,
+        suppressionFlags,
+        provider:            bestAttempt.provider,
+        retryCount,
+        qualityIssue:        bestAttempt.issue, // non-null = shown to user as soft warning
+      };
     }),
 
   // ENG-014: Polling endpoint for generation status
