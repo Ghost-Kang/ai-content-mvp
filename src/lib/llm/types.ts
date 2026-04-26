@@ -52,6 +52,7 @@ export type LLMErrorCode =
   | 'CONTENT_FILTERED'
   | 'PROVIDER_UNAVAILABLE'
   | 'AUTH_FAILED'
+  | 'SPEND_CAP_EXCEEDED'
   | 'UNKNOWN';
 
 export class LLMError extends Error {

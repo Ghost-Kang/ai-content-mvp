@@ -1,0 +1,155 @@
+{
+  "_meta": {
+    "scriptTopic": "为什么 SaaS 产品免费试用反而留不住用户",
+    "generatedAt": "2026-04-23T14:46:23.934Z",
+    "model": "moonshot-v1-32k",
+    "latencyMs": 26890,
+    "warnings": []
+  },
+  "output": {
+    "promptVersion": "v0",
+    "frames": [
+      {
+        "index": 1,
+        "voiceover": "免费试用，听起来很吸引人",
+        "durationSec": 2,
+        "cameraLanguage": "特写",
+        "scene": "免费试用标签贴在产品包装上",
+        "imagePrompt": "写实风格，明亮工作室桌面，'免费试用'红色贴纸贴在白色 SaaS 产品盒子上，特写镜头，柔和顶光",
+        "onScreenText": "免费试用"
+      },
+      {
+        "index": 2,
+        "voiceover": "但真相是",
+        "durationSec": 2,
+        "cameraLanguage": "中景",
+        "scene": "屏幕上出现一个大问号",
+        "imagePrompt": "写实风格，黑色背景中白色大问号，中景镜头，中心高光突出问号"
+      },
+      {
+        "index": 3,
+        "voiceover": "它留不住用户",
+        "durationSec": 2,
+        "cameraLanguage": "中景",
+        "scene": "用户关闭电脑并离开办公室",
+        "imagePrompt": "写实风格，办公室内，用户关闭电脑，背起背包，走向门口，中景镜头，自然光"
+      },
+      {
+        "index": 4,
+        "voiceover": "用户注册后，很快就流失",
+        "durationSec": 3,
+        "cameraLanguage": "特写",
+        "scene": "用户流失统计图下降",
+        "imagePrompt": "写实风格，办公室内，电脑屏幕上显示用户流失统计图，箭头向下，特写镜头，屏幕冷光"
+      },
+      {
+        "index": 5,
+        "voiceover": "因为试用体验不完整",
+        "durationSec": 3,
+        "cameraLanguage": "中景",
+        "scene": "产品体验流程图缺少部分",
+        "imagePrompt": "写实风格，办公室内，产品体验流程图部分被划去，中景镜头，自然光"
+      },
+      {
+        "index": 6,
+        "voiceover": "功能限制太多，用户无法深入体验",
+        "durationSec": 3,
+        "cameraLanguage": "特写",
+        "scene": "产品界面显示功能限制提示",
+        "imagePrompt": "写实风格，SaaS产品界面，显示'功能限制'提示，特写镜头，屏幕冷光"
+      },
+      {
+        "index": 7,
+        "voiceover": "免费试用成了摆设",
+        "durationSec": 3,
+        "cameraLanguage": "中景",
+        "scene": "摆设的装饰品被风吹动",
+        "imagePrompt": "写实风格，办公室内，摆设的装饰品被风吹动，中景镜头，自然光"
+      },
+      {
+        "index": 8,
+        "voiceover": "比如一家初创公司",
+        "durationSec": 4,
+        "cameraLanguage": "中景",
+        "scene": "初创公司的标志",
+        "imagePrompt": "写实风格，初创公司标志挂在墙上，中景镜头，室内灯光"
+      },
+      {
+        "index": 9,
+        "voiceover": "试用了我们的SaaS产品",
+        "durationSec": 3,
+        "cameraLanguage": "中景",
+        "scene": "SaaS产品界面展示",
+        "imagePrompt": "写实风格，SaaS产品界面展示，中景镜头，屏幕冷光"
+      },
+      {
+        "index": 10,
+        "voiceover": "但因为功能限制，无法满足需求",
+        "durationSec": 4,
+        "cameraLanguage": "特写",
+        "scene": "产品界面显示功能限制",
+        "imagePrompt": "写实风格，SaaS产品界面显示功能限制提示，特写镜头，屏幕冷光"
+      },
+      {
+        "index": 11,
+        "voiceover": "试用一周后，他们选择了离开",
+        "durationSec": 3,
+        "cameraLanguage": "中景",
+        "scene": "用户关闭电脑并离开",
+        "imagePrompt": "写实风格，用户关闭电脑并拿起外套离开，中景镜头，自然光"
+      },
+      {
+        "index": 12,
+        "voiceover": "损失了潜在的长期客户",
+        "durationSec": 3,
+        "cameraLanguage": "中景",
+        "scene": "流失的客户统计图",
+        "imagePrompt": "写实风格，办公室内，电脑屏幕上显示流失客户统计图，箭头向下，中景镜头，屏幕冷光"
+      },
+      {
+        "index": 13,
+        "voiceover": "这对初创公司来说是个打击",
+        "durationSec": 3,
+        "cameraLanguage": "全景",
+        "scene": "初创公司团队沮丧",
+        "imagePrompt": "写实风格，初创公司团队成员围坐，表情沮丧，全景镜头，室内灯光"
+      },
+      {
+        "index": 14,
+        "voiceover": "真正的试用应该让用户看到价值",
+        "durationSec": 3,
+        "cameraLanguage": "中景",
+        "scene": "价值图表展示",
+        "imagePrompt": "写实风格，价值图表展示，中景镜头，屏幕冷光"
+      },
+      {
+        "index": 15,
+        "voiceover": "而不是让他们感到受限",
+        "durationSec": 3,
+        "cameraLanguage": "特写",
+        "scene": "用户感到受限的表情",
+        "imagePrompt": "写实风格，用户面对电脑屏幕，表情显示受限，特写镜头，屏幕冷光"
+      },
+      {
+        "index": 16,
+        "voiceover": "我们的SaaS产品",
+        "durationSec": 4,
+        "cameraLanguage": "中景",
+        "scene": "SaaS产品界面展示",
+        "imagePrompt": "写实风格，SaaS产品界面展示，中景镜头，屏幕冷光"
+      },
+      {
+        "index": 17,
+        "voiceover": "让用户在试用中就能感受到价值",
+        "durationSec": 4,
+        "cameraLanguage": "特写",
+        "scene": "用户满意的表情",
+        "imagePrompt": "写实风格，用户在使用SaaS产品后满意的表情，特写镜头，屏幕冷光"
+      }
+    ],
+    "totalDurationSec": 52,
+    "suppressionFlags": [],
+    "llmModel": "moonshot-v1-32k",
+    "generatedAt": "2026-04-23T14:46:23.934Z"
+  }
+}

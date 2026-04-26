@@ -1,0 +1,128 @@
+{
+  "_meta": {
+    "topic": "为什么 SaaS 产品免费试用反而留不住用户",
+    "generatedAt": "2026-04-23T14:02:59.722Z",
+    "sourceCommit": "W1-04-V3 ScriptNodeRunner",
+    "provider": "kimi",
+    "model": "moonshot-v1-32k",
+    "latencyMs": 43525,
+    "retryCount": 3,
+    "qualityIssue": "字数不足：181字，最少需要190字"
+  },
+  "output": {
+    "frames": [
+      {
+        "index": 1,
+        "text": "免费试用，听起来很吸引人",
+        "visualDirection": "画面：免费试用标签",
+        "durationS": 2
+      },
+      {
+        "index": 2,
+        "text": "但真相是",
+        "visualDirection": "画面：问号",
+        "durationS": 2
+      },
+      {
+        "index": 3,
+        "text": "它留不住用户",
+        "visualDirection": "画面：用户离开",
+        "durationS": 2
+      },
+      {
+        "index": 4,
+        "text": "用户注册后，很快就流失",
+        "visualDirection": "画面：用户流失",
+        "durationS": 3
+      },
+      {
+        "index": 5,
+        "text": "因为试用体验不完整",
+        "visualDirection": "画面：不完整的产品体验",
+        "durationS": 3
+      },
+      {
+        "index": 6,
+        "text": "功能限制太多，用户无法深入体验",
+        "visualDirection": "画面：功能限制",
+        "durationS": 3
+      },
+      {
+        "index": 7,
+        "text": "免费试用成了摆设",
+        "visualDirection": "画面：摆设",
+        "durationS": 3
+      },
+      {
+        "index": 8,
+        "text": "比如一家初创公司",
+        "visualDirection": "画面：初创公司标志",
+        "durationS": 4
+      },
+      {
+        "index": 9,
+        "text": "试用了我们的SaaS产品",
+        "visualDirection": "画面：SaaS产品界面",
+        "durationS": 3
+      },
+      {
+        "index": 10,
+        "text": "但因为功能限制，无法满足需求",
+        "visualDirection": "画面：功能限制",
+        "durationS": 4
+      },
+      {
+        "index": 11,
+        "text": "试用一周后，他们选择了离开",
+        "visualDirection": "画面：用户离开",
+        "durationS": 3
+      },
+      {
+        "index": 12,
+        "text": "损失了潜在的长期客户",
+        "visualDirection": "画面：潜在客户流失",
+        "durationS": 3
+      },
+      {
+        "index": 13,
+        "text": "这对初创公司来说是个打击",
+        "visualDirection": "画面：打击",
+        "durationS": 3
+      },
+      {
+        "index": 14,
+        "text": "真正的试用应该让用户看到价值",
+        "visualDirection": "画面：价值",
+        "durationS": 3
+      },
+      {
+        "index": 15,
+        "text": "而不是让他们感到受限",
+        "visualDirection": "画面：受限",
+        "durationS": 3
+      },
+      {
+        "index": 16,
+        "text": "我们的SaaS产品",
+        "visualDirection": "画面：SaaS产品界面",
+        "durationS": 4
+      },
+      {
+        "index": 17,
+        "text": "让用户在试用中就能感受到价值",
+        "visualDirection": "画面：用户满意",
+        "durationS": 4
+      }
+    ],
+    "charCount": 181,
+    "frameCount": 17,
+    "fullText": "免费试用，听起来很吸引人但真相是它留不住用户用户注册后，很快就流失因为试用体验不完整功能限制太多，用户无法深入体验免费试用成了摆设比如一家初创公司试用了我们的SaaS产品但因为功能限制，无法满足需求试用一周后，他们选择了离开损失了潜在的长期客户这对初创公司来说是个打击真正的试用应该让用户看到价值而不是让他们感到受限我们的SaaS产品让用户在试用中就能感受到价值",
+    "commentBaitQuestion": "你怎么看？免费试用真的能留住用户吗？",
+    "suppressionFlags": [],
+    "provider": "kimi",
+    "model": "moonshot-v1-32k",
+    "latencyMs": 43525,
+    "retryCount": 3,
+    "qualityIssue": "字数不足：181字，最少需要190字"
+  }
+}

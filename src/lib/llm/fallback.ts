@@ -1,6 +1,7 @@
 import { resolveProviderChain } from './router';
 import { getProvider } from './factory';
 import { getCircuitBreaker } from './circuit-breaker';
+import { checkSpendCap, recordSpend } from './spend-tracker';
 import { LLMError } from './types';
 import type { LLMRequest, LLMResponse, ProviderName } from './types';
 
@@ -8,6 +9,20 @@ export async function executeWithFallback(
   request: LLMRequest,
 ): Promise<LLMResponse> {
   const chain = resolveProviderChain(request);
+
+  // W4-01 — spend cap gate. Fail closed before spending a single token.
+  const cap = await checkSpendCap(request.tenantId);
+  if (!cap.allowed) {
+    throw new LLMError(
+      'SPEND_CAP_EXCEEDED',
+      chain[0],
+      cap.reason === 'global_cap'
+        ? `Global daily cap hit: ${cap.globalSpentFen}/${cap.globalCapFen} 分`
+        : `Tenant daily cap hit: ${cap.tenantSpentFen}/${cap.tenantCapFen} 分`,
+      false,
+    );
+  }
+
   const errors: LLMError[] = [];
   const skippedOpen: { provider: ProviderName; msUntilReset: number }[] = [];
 
@@ -24,6 +39,8 @@ export async function executeWithFallback(
     try {
       const response = await provider.complete(request);
       breaker.recordSuccess();
+      // Fire-and-forget accounting — don't block on DB writes.
+      void recordSpend(request.tenantId, response.provider, response.usage.totalTokens);
       return response;
     } catch (err) {
       const llmError =
