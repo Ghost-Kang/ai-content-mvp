@@ -1,6 +1,26 @@
 # 预建决策日志 — AI 内容营销工作室 MVP
-**记录日期**: 2026-04-17（初版）· **v1.1 修订**: 2026-04-18 · **v2.0 solo pivot**: 2026-04-19 · **v3.0 PIVOT**: 2026-04-22 · **D31 vendor lock-in**: 2026-04-25
+**记录日期**: 2026-04-17（初版）· **v1.1 修订**: 2026-04-18 · **v2.0 solo pivot**: 2026-04-19 · **v3.0 PIVOT**: 2026-04-22 · **D31 vendor lock-in**: 2026-04-25 · **D32 Seedance fixes**: 2026-04-26
 
+> ## 🟢 2026-04-26 — D32 Seedance 模型 ID 修正 + W2-04 Step 3 通过
+>
+> | # | 决策 / 事实 | 状态 |
+> |---|---|---|
+> | **D32** | Seedance 实际开通 SKU = **`doubao-seedance-1-0-pro-250528`**（不是 D24 调研里假设的 `doubao-seedance-1-5-pro-251215`，那个 SKU 火山控制台单独 gate 没自动给本账号） | ✅ 2026-04-26 实测 |
+> | **W2-04 Step 3** | 5 runs / ¥30 budget / 10s clip @ 720p / KIMI prompt：**5/5 success · mean latency 1m27s · p95 1m38s** | ✅ 成功率 KILL GATE 通过（≥70%）|
+> | **D32-Pricing TBD** | 火山 Ark **token-based billing**（response 含 `usage.completion_tokens: 103818` for 5s clip），不是按秒。D24 假设的 `usage.total_seconds` 字段不存在 → 客户端 `costPerSecondFen × seconds` 计算永返 ¥0。**真成本必须从 Ark 控制台余额扣减反推** | 🟡 待用户回填 ¥196 含义（剩/扣/充）|
+> | **延迟事实** | 10s clip wall-clock = ~1m27s（~8.7× realtime）→ 60s clip 推算 ~9 分钟；5-8 帧 workflow ~ 45-70 分钟，**强化 W2-07a QStash 异步派发的必要性** | ✅ 实测 |
+>
+> **Step 4 前置条件**：
+> 1. 用户确认 ¥196 含义 → 反推单条成本
+> 2. 若单条 ≤ ¥3（10s clip）→ 50 跑预算 ¥150-250 安全 → 走 step 4
+> 3. 若单条 > ¥30 → 直接触发 STRATEGY §4 W2 kill condition，不跑 step 4，重谈定价或砍 D23 上限
+>
+> **代码改动（pre-sprint 整模块 untracked，待整体 catch-up commit）**：
+> - `src/lib/video-gen/config.ts` `DEFAULT_SEEDANCE_MODEL` 改为 `doubao-seedance-1-0-pro-250528`
+> - `.env.local.template` 注释同步
+>
+> ---
+>
 > ## 🟢 2026-04-25 — D31 数据源 vendor 锁定 + W1-08 SUPERSEDED
 >
 > **新榜（新榜数据开放平台）已签约** · 飞瓜 + 灰豚 + 洞察猫外联**全部停止**。
