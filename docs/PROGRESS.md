@@ -1,8 +1,8 @@
 # PROGRESS — AI 短视频内容工作流平台 (v3.0 PIVOT)
 
-**Last updated**: 2026-04-25
-**Resume point**: 🟢 **W1 全绿 + W2-01..W2-03 + W2-04 PoC 脚本 (dry-run 验证) + W2-05/06 + W2-07a + W2-07b + W3-01 + W3-03 + W3-04 + W3-05 v1 + W3-06 + W3-07 + W3-08 + W3-09 + W4-07 锁定**（W2-07b SSE 推送：`/api/workflow/[runId]/events` server-side 1s 轮询 + `event: snapshot` 推送 + 25s 心跳 + 终止/4.5min 上限自动 close + Clerk 认证 + 跨 tenant 隔离；客户端 `useWorkflowEvents` hook 把 EventSource 数据写回 react-query 缓存，polling 自动从 2s 退化到 15s 兜底；canvas 顶部进度提示按 SSE 状态切「实时推送已连接 / 每 2 秒自动刷新」。W3-08 编辑 UX 升级：`PerFrameEditor` 视觉化按帧编辑器替代裸 JSON（脚本/分镜两套字段）+ 增/删/上下移动 + 自动 reindex + 字数/镜头多样性内联提示 + 镜头语言下拉 + 表单/JSON 模式互切；`EditNodeDialog` 默认表单模式，原始 JSON 作 power-user escape hatch；保存时自动重算 charCount/frameCount/fullText/totalDurationSec，passthrough 字段 verbatim 保留；73 assertion 纯 logic 离线单测 0 fail）· 🔴 **W2-04 真 API PoC 仍等 `SEEDANCE_API_KEY`** + 🔴 **`storage:probe` 待用户跑一次创建 bucket** · 下一步 **W2-04 Seedance PoC**（key 到位就跑）/ 视觉验收 W2-07b + W3-08（dev 跑 1 个 run 看 SSE 灯绿 + 按帧改一段试 cascade）
-**Current phase**: 🟢 **v3.0 sprint 启动** — 7-week 内测 launch (06-12) · B+B+内测 锁定
+**Last updated**: 2026-04-26
+**Resume point**: 🟢 **W1 全绿 + W2-01..W2-07b 全绿 + W2-04 真 API 验完 + W3-01..09 + W4-07 锁定 + D31 (新榜签) + D32 (Seedance pricing) + D33 (默认 480p) + D34 (单位经济重算)**。W2-04 step 3 实跑 5/5 success @ 720p · mean 1m27s · cost 由 token-based billing（¥15/M tokens）实测，非 D24 估算。Step 4 (50 跑) 已 ✅ skipped — pricing 由控制台 + 1 次 480p 测量定死。**默认 480p / 60条/月 = 37% 毛利**，720p 留作付费升级档。`storage:probe` ✅ 已建 bucket。
+**Current phase**: 🟢 **进入 W4 选题节点 + W5 内测准备** — 7-week launch (06-12) on track（pre-sprint 已带跑 ~50% 工程量）
 
 ---
 
