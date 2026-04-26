@@ -26,14 +26,16 @@ export function buildSuppressionScanner(text: string): SuppressionFlag[] {
     }
   }
 
-  // Check for symmetric list pattern (3+ items of equal length within ±2 chars)
-  const listItemPattern = /[1-9]\.\s*(.{2,20})\s*/g;
+  // Check for symmetric list pattern (3+ items of equal length within ±2 chars).
+  // Previous regex `(.{2,20})` was greedy and swallowed across multiple items.
+  // Use a negated-class capture that stops at the next digit prefix or newline.
+  const listItemPattern = /[1-9]\.\s*([^1-9\n]{2,30})/g;
   const matches = [...text.matchAll(listItemPattern)];
   if (matches.length >= 3) {
-    const lengths = matches.map((m) => m[1].trim().length);
+    const lengths = matches.map((m) => m[1].trim().replace(/\s/g, '').length);
     const avg = lengths.reduce((a, b) => a + b, 0) / lengths.length;
     const isSymmetric = lengths.every((l) => Math.abs(l - avg) <= 2);
-    if (isSymmetric && matches.length >= 3) {
+    if (isSymmetric) {
       flags.push({
         category: 'symmetric_list',
         matchedText: `${matches.length}个等长列表项`,

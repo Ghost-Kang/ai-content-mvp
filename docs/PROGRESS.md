@@ -1,8 +1,20 @@
 # PROGRESS — AI 短视频内容工作流平台 (v3.0 PIVOT)
 
-**Last updated**: 2026-04-26
+**Last updated**: 2026-04-26（W4-01 冻结说明 · 合规审计 003 · export_overrides · typecheck 全绿）
 **Resume point**: 🟢 **W1 全绿 + W2-01..W2-07b 全绿 + W2-04 真 API 验完 + W3-01..09 + W4-07 锁定 + D31 (新榜签) + D32 (Seedance pricing) + D33 (默认 480p) + D34 (单位经济重算)**。W2-04 step 3 实跑 5/5 success @ 720p · mean 1m27s · cost 由 token-based billing（¥15/M tokens）实测，非 D24 估算。Step 4 (50 跑) 已 ✅ skipped — pricing 由控制台 + 1 次 480p 测量定死。**默认 480p / 60条/月 = 37% 毛利**，720p 留作付费升级档。`storage:probe` ✅ 已建 bucket。
-**Current phase**: 🟢 **进入 W4 选题节点 + W5 内测准备** — 7-week launch (06-12) on track（pre-sprint 已带跑 ~50% 工程量）
+**Current phase**: 🟢 **进入 W4 选题节点 + W5 内测准备** — 7-week launch (06-12) on track（pre-sprint 已带跑 ~50% 工程量）· **新榜（D31 已签）侧 API 文档目前仍不齐**，W4-01 以「文档齐/可调用清单为证」为 Gate，缺口期不盲接 HTTP 假 schema。
+
+**W4-01 / 新榜 冻结（至文档/清单到位前）**：
+- **不写的代码**：对「新榜/供应商」的盲接 HTTP 与未文档化字段；避免上线后全链路调不通回滚。
+- **允许跑内测**：`topic_pushes.source` 已含 `manual`；运营侧人工选题/表格导入/mock 列表，选题节点可先 **stub 成「从 manual/当日表选」** 不调外网。
+- **可并行、与 OpenAPI 版本正交**：自有 LLM spend/日 cap/硬 kill、合规审计、导出 — 不依赖新榜发版时间。
+- **库**：`pnpm db:migrate:compliance`（003 `export_overrides` + `compliance_audit_logs`）；在跑 `wf:test:export:runner` case 8 前需执行。关闭 disclosure 仅经 `workflow_runs.export_overrides`（SQL/ops），UI 不暴露；导出成功时写审计条，`/admin/dashboard` 只读表。
+
+**内测前 Preview 横切**（`vercel deploy --target=preview` 后 15–20 min）：
+1. `vercel env pull` 与本机关键变量（`SEEDANCE` / `DATABASE_URL` / `ADMIN_USER_IDS` / Supabase）**与 preview 对齐**；避免「本地绿、线上演」。
+2. 跑一条 5 节点全链路 → SSE、导出 zip、**剪映打开** 水印/时长。
+3. `/admin/dashboard`：4 KPI + **合规表** 可渲染（003 后）；首页运营入口仅白名单见。
+4. 回归 `pnpm typecheck` + 关键 `wf:test:*`（发版前 CI 或本机）。
 
 ---
 
@@ -27,8 +39,8 @@
 - [x] `pnpm storage:probe` 成功（2026-04-25），`workflow-exports` bucket 已建（50 MiB cap），upload+sign+delete 全过
 
 **🔴 真正还要等的事**：
-1. ~~飞瓜/新榜/灰豚 任意 1 家给出 API 报价~~ → ✅ **新榜签约 04-25**；待你贴 API 文档启动 W4-01 实施
-2. `SEEDANCE_API_KEY` 申请中（你 2026-04-25 提交）— 拿到后启动 W2-04 真 PoC
+1. **新榜 API 文档不齐全** — D31 已签，**W4-01 以接口文档可实施为 Gate**；补齐（或你贴可调用清单/截图/链接）后再落地；空档可 mock/人工选题，不硬写假接口
+2. ~~`SEEDANCE_API_KEY` 等审批~~ → ✅ **已提供并已用于 W2-04 真跑**（dev/local 与 deploy env 以实际配置为准，不再标「等 key」）
 3. 内测 5 名种子用户在 W7 前 deck 排期 — 已访谈过 3 人（家琳、苗苗、永航）+ 找 P4 + 1 名补员
 
 **W1（04-28..05-04）· 5 eng-days · 工作流引擎 + 脚本节点复用**
@@ -282,7 +294,7 @@
 - **W2-07b SSE 推送**（不需 key，纯 UI 升级）：`/api/workflow/[runId]/events/route.ts` 拉 SSE，UI swap `useQuery({refetchInterval})` 为 `EventSource + setQueryData`；后端最小改动，看用户是否觉得 2s 轮询慢再做
 - **W3-08 编辑 UX 升级**（不需 key）：把 `EditNodeDialog` 的裸 JSON textarea 升级成按帧表单（每帧一个卡片：text/imagePrompt/cameraLanguage/onScreenText 4 字段 + 拖拽排序 + 增删帧）— 内测用户能用裸 JSON 但生产 v2 必做
 
-- 建议顺序：用户跑一次 dev server 视觉走查 W3-07（找一个已 failed 的 run，看 banner + 节点卡片 + 详情弹窗的中文化和建议是否合理）→ 部署 preview 验 W3-06 + W3-07；同时催 SEEDANCE_API_KEY → key 到先 W2-04 拍板 → 通后切 full orchestrator → 真 run 验收 W3-05/06/07 + 真剪映打开验收 W3-02 = 内测预约用户能完整跑通
+- 建议顺序：用户跑一次 dev server 视觉走查 W3-07（找一个已 failed 的 run，看 banner + 节点卡片 + 详情弹窗的中文化和建议是否合理）→ 部署 preview 验 W3-06 + W3-07；`SEEDANCE_API_KEY` 已到位、W2-04 已拍板 → 切 full orchestrator → 真 run 验收 W3-05/06/07 + 真剪映打开验收 W3-02 = 内测预约用户能完整跑通
 
 **🟢 W2-07b SSE 推送 + W3-08 编辑 UX 升级 已完成（2026-04-24 当日 pre-sprint · 全部离线，零外部依赖）**
 
@@ -363,7 +375,7 @@
 4. ~~**W3-08 表单字段没做 onBlur 弱校验**~~ → ✅ **W3-09 已做**（红/琥珀双级别 + 仅 blur 后才显色）
 5. **mode 切换没记忆用户偏好**：每次重开 dialog 都默认 frames 模式。如果某 power user 长期用 JSON 模式，每次都要点一次。无关紧要
 
-**🟢 W2-04-V3 PoC 脚本骨架已完成（2026-04-25 当日 pre-sprint · dry-run 验证全绿，等 SEEDANCE_API_KEY 即可一行命令真跑）**
+**🟢 W2-04-V3 PoC 脚本骨架已完成（2026-04-25 当日 pre-sprint · dry-run 验证全绿；`SEEDANCE_API_KEY` 已可一行命令真跑 / 与 Resume 真验一致）**
 
 **目标**：把 W2-04 KILL GATE（成功率 ≥ 70% + 单条成本 ≤ ¥15）从「等 key 才能开始写脚本」前置到「key 一到位即跑 → 报告自动落地 → 立刻签字」。
 
@@ -397,7 +409,7 @@
 
 **🟢 W3-09 拖拽排序 + onBlur 字段校验已完成（2026-04-25 当日 pre-sprint · 全部离线，零外部依赖）**
 
-**目标**：把"拖拽 + 弱校验"两个被推到 MVP-1 之后的 W3-08 待办坑，在 P0 KILL GATE 还在等 key 的间隙顺手填掉，让永航 / 苗苗 / 家琳 三人再次走查时直接拿到「拖一帧到任意位置」+「字段错了立即变色」的 polish UX。
+**目标**：把"拖拽 + 弱校验"两个被推到 MVP-1 之后的 W3-08 待办坑，在 P0 KILL GATE 窗口期顺手填掉，让永航 / 苗苗 / 家琳 三人再次走查时直接拿到「拖一帧到任意位置」+「字段错了立即变色」的 polish UX。
 
 **实施**：
 - ✅ 纯逻辑层 `frame-editor-logic.ts` 扩 2 个 pure functions：
@@ -437,7 +449,7 @@
 
 **🟢 W3-03 CAC AI 水印注入已完成（2026-04-25 当日 pre-sprint · 全部离线，零外部依赖）**
 
-**目标**：把 ENG_TASKS_V3 W3-03 ticket 在 P0 KILL GATE 等 key 的间隙顺手清掉。抖音 / 视频号 2024 起对 AI 生成内容已强制平台层标签，**+1 道艺术品层水印**是给永航 / 苗苗 / 家琳 内测样片的双保险 —— 不论用户走平台 AI 标签还是直接发，导出的 mp4 都自带"本视频由 AI 辅助生成"。
+**目标**：把 ENG_TASKS_V3 W3-03 ticket 在 pre-sprint 空档顺手清掉。抖音 / 视频号 2024 起对 AI 生成内容已强制平台层标签，**+1 道艺术品层水印**是给永航 / 苗苗 / 家琳 内测样片的双保险 —— 不论用户走平台 AI 标签还是直接发，导出的 mp4 都自带"本视频由 AI 辅助生成"。
 
 **盘点 & 实施**：
 | 触点 | 旧状态 | W3-03 后 |
@@ -473,14 +485,14 @@
 
 **关键设计决定**：
 1. **独立 track 而非和 onScreenText 同轨**：剪映里两层独立，用户编辑/删用户字幕不会误删 disclosure。Linear / Figma 等编辑器同款"图层锁"思路
-2. **默认 ON + UI 不暴露 toggle**：合规态默认安全；想关只能改 backend `aiDisclosureLabel.disabled=true`，留下 audit log（W3-03 不阻塞 backend，未来 admin tool 加 logging 即可）
+2. **默认 ON + UI 不暴露 toggle**：合规态默认安全；想关经 `export_overrides` 或 backend 注入 `aiDisclosureLabel.disabled=true`，导出时写 `compliance_audit_log` 且运营台只读
 3. **白字 + 半透明黑底**：测了几种组合，纯白字在亮视频上看不见，纯黑底太丑 ——`#000000A0` （透明度 ~63%）是 Twitter / 抖音字幕通用规格
 4. **Seedance mp4 不做 ffmpeg 改写**：① CDN URL 不在我们手里 ② 拉下来转码再上传 = 引入 ffmpeg pipeline + Storage 双倍带宽，ROI 极低；剪映 disclosure 轨导出后 = 用户实际发的 mp4 已带水印，等价但成本 O(0)
 5. **`extra_info='cac-disclosure'` magic string 抽常量 `JIANYING_DISCLOSURE_TAG`**：tests / future audit tool / 未来 zip 校验都能锁这个标签，DECISIONS_LOG 注明 NEVER change
 
 **⚠ W3-03 已知缺口**（不阻 MVP-1 内测）：
 1. **没在抖音 API 端打"我是 AI 生成"flag**：MVP-1 D25 (c) 锁定为手动导出，用户自己发抖音时勾平台 AI 标签 — W4 做 `/topics` 选题推送时一起把"复制水印模板 + 平台标签提示"放进 share dialog
-2. **`disabled=true` 走 backend 不写 audit log**：W4-07 dashboard 已上线，但 override 审计落库还没做（后续并入 admin action log）
+2. [x] **`disabled=true` 审计** — 2026-04-26：`export_overrides` + `compliance_audit_logs` + dashboard 只读
 3. **没做 watermark 字体 fallback**：剪映自带字体足够，但若用户系统缺中文字体可能渲染成 □ — 等真有用户报再加 `font_path` 显式指定
 
 ---
@@ -509,15 +521,16 @@
 | `node --import tsx scripts/test-admin-auth.ts` | ✅ All assertions pass |
 
 **后续非阻断**：
-1. admin override action（例如关闭 disclosure）的审计日志（谁在何时改了什么）
-2. `/dashboard` 增加“运营看板”入口（当前可直接访问 `/admin/dashboard`）
-3. 若数据量上来再补 materialized view / cache（当前查询复杂度足够低）
+1. [x] **关闭 disclosure 的审计落库** — `compliance_audit_logs` + export 在 `aiDisclosureLabel.disabled` 时写入；`workflow_runs.export_overrides` 供后台/ops 设 JSON（MVP 无 UI toggle）；运营 dashboard 只读近 30 条 — 2026-04-26
+2. [x] `/dashboard` 增加“运营看板”入口（仅 `ADMIN_USER_IDS` 在首页看到卡片，仍可直接访问 `/admin/dashboard`）— 2026-04-26
+3. [x] **读路径缓存**（代 materialized view）：`fetchAdminSummary` 包 `unstable_cache` 60s + tag `admin-summary`；PG 仍不建 MV（`queries.ts` 已有性能余量）— 2026-04-26
+4. 后续 **admin 专用 HTTP 动作**（设 `export_overrides` 并记 actor=管理员 userId）— 当前用 SQL/脚本即可。
 
 ---
 
-**🔴 接下来二选一**：
-- **W2-04 真 API 跑**：等 `SEEDANCE_API_KEY` → 走 5 步剧本（最高优，P0 KILL GATE）
-- **部署 preview 验 W2-07b + W3-08 + W3-09 + W3-03 + W4-07**（不需 key，~12 min）：`vercel deploy --target=preview` → 跑一个 run 看 SSE 灯绿 + 改一帧文案看 cascade + 拖一帧到任意位置 + 把文案删空看红边变色 + 切 JSON 模式回 frames 模式无信息丢失 + 下载导出 zip 在剪映打开看到底部"本视频由 AI 辅助生成"水印 + 访问 `/admin/dashboard` 核对 4 卡片可读
+**🟡 接下来（按实际缺口选）**：
+- **W2-04 回归 / prod env**：`SEEDANCE_API_KEY` 已提供；若 preview/prod 尚未与本地对齐，用 `vercel env pull` + 5 步剧本做防回归（Resume 上 dev 真验已过）
+- **部署 preview 验**（~15 min）：`vercel deploy --target=preview` → 同上产品走查 + **`pnpm db:migrate:compliance` 已打在 preview 库** 时，运营页「合规/高敏」区非空能验证审计链路
 
 ### ✅ 立项 Gate 全通过（2026-04-23）
 
