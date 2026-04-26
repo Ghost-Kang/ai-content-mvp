@@ -15,6 +15,7 @@
     "db:smoke": "tsx --env-file=.env.local scripts/smoke-db.ts",
     "db:probe": "tsx --env-file=.env.local scripts/probe-cross-tenant.ts",
     "db:migrate:v3": "tsx --env-file=.env.local scripts/migrate-v3-workflow.ts",
+    "db:migrate:compliance": "tsx --env-file=.env.local scripts/migrate-compliance-audit.ts",
     "db:smoke:v3": "tsx --env-file=.env.local scripts/smoke-db-v3.ts",
     "db:probe:v3": "tsx --env-file=.env.local scripts/probe-cross-tenant-v3.ts",
     "wf:test": "tsx --env-file=.env.local scripts/test-workflow-runner.ts",

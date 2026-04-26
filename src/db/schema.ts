@@ -241,3 +241,181 @@ export const surveyResponses = pgTable('survey_responses', {
   responses:   jsonb('responses').notNull(),
   submittedAt: timestamp('submitted_at', { withTimezone: true }).notNull().defaultNow(),
 });
+
+// ─── LLM Spend Daily (W4-01) ──────────────────────────────────────────────────
+// One row per (tenant, day, provider). tenantId NULL = system-level calls
+// (e.g. audit scripts). Costs stored in cents (fen) to avoid FP drift.
+
+export const llmSpendDaily = pgTable(
+  'llm_spend_daily',
+  {
+    id:            uuid('id').primaryKey().defaultRandom(),
+    tenantId:      uuid('tenant_id').references(() => tenants.id),
+    spendDate:     text('spend_date').notNull(), // YYYY-MM-DD (UTC)
+    provider:      text('provider').notNull(),   // kimi/openai/...
+    totalTokens:   integer('total_tokens').notNull().default(0),
+    costFen:       integer('cost_fen').notNull().default(0), // 分 = 0.01 元
+    callCount:     integer('call_count').notNull().default(0),
+    updatedAt:     timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => ({
+    // Upsert target key. tenantId can be NULL so we key on COALESCE via SQL.
+    byDayProvider: index('idx_llm_spend_day_provider').on(t.spendDate, t.provider),
+    byTenantDay:   index('idx_llm_spend_tenant_day').on(t.tenantId, t.spendDate),
+  }),
+);
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// v3.0 Workflow Engine (Migration 002 — W1-01-V3)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+export const nodeTypeEnum = pgEnum('node_type', [
+  'topic',
+  'script',
+  'storyboard',
+  'video',
+  'export',
+]);
+
+export const workflowStatusEnum = pgEnum('workflow_status', [
+  'pending',
+  'running',
+  'done',
+  'failed',
+  'cancelled',
+]);
+
+export const stepStatusEnum = pgEnum('step_status', [
+  'pending',
+  'running',
+  'done',
+  'failed',
+  'skipped',
+  'dirty', // upstream node edited; this step needs rerun (W3-06 cascade)
+]);
+
+// ─── Workflow Runs ────────────────────────────────────────────────────────────
+
+export const workflowRuns = pgTable(
+  'workflow_runs',
+  {
+    id:               uuid('id').primaryKey().defaultRandom(),
+    tenantId:         uuid('tenant_id').notNull().references(() => tenants.id),
+    createdBy:        uuid('created_by').notNull().references(() => users.id),
+    topic:            text('topic').notNull(),
+    status:           workflowStatusEnum('status').notNull().default('pending'),
+    totalCostFen:     integer('total_cost_fen').notNull().default(0),
+    totalVideoCount:  integer('total_video_count').notNull().default(0),
+    errorMsg:         text('error_msg'),
+    startedAt:        timestamp('started_at', { withTimezone: true }),
+    completedAt:      timestamp('completed_at', { withTimezone: true }),
+    /**
+     * Optional per-run export tuning (W4-07). Set only from backend/ops — not
+     * in v3 UI. Example: {"aiDisclosureLabel":{"disabled":true}}.
+     */
+    exportOverrides:  jsonb('export_overrides').$type<Record<string, unknown> | null>(),
+    createdAt:        timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt:        timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index('idx_runs_tenant').on(t.tenantId),
+    index('idx_runs_status').on(t.status),
+    index('idx_runs_created_by').on(t.createdBy),
+  ],
+);
+
+// ─── Workflow Steps ───────────────────────────────────────────────────────────
+// One row per (run, node_type). Re-runs increment retry_count; never insert new.
+
+export const workflowSteps = pgTable(
+  'workflow_steps',
+  {
+    id:           uuid('id').primaryKey().defaultRandom(),
+    runId:        uuid('run_id').notNull().references(() => workflowRuns.id, { onDelete: 'cascade' }),
+    tenantId:     uuid('tenant_id').notNull().references(() => tenants.id),
+    nodeType:     nodeTypeEnum('node_type').notNull(),
+    stepIndex:    integer('step_index').notNull(),
+    status:       stepStatusEnum('status').notNull().default('pending'),
+    inputJson:    jsonb('input_json').notNull().default({}),
+    outputJson:   jsonb('output_json').notNull().default({}),
+    errorMsg:     text('error_msg'),
+    retryCount:   integer('retry_count').notNull().default(0),
+    costFen:      integer('cost_fen').notNull().default(0),
+    startedAt:    timestamp('started_at', { withTimezone: true }),
+    completedAt:  timestamp('completed_at', { withTimezone: true }),
+    createdAt:    timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt:    timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index('idx_steps_run').on(t.runId),
+    index('idx_steps_run_index').on(t.runId, t.stepIndex),
+    index('idx_steps_node_status').on(t.nodeType, t.status),
+    uniqueIndex('uq_steps_run_node').on(t.runId, t.nodeType),
+  ],
+);
+
+// ─── Topic Pushes ─────────────────────────────────────────────────────────────
+// One row per (user, push_date). Daily trending bundle.
+
+export const topicPushes = pgTable(
+  'topic_pushes',
+  {
+    id:                 uuid('id').primaryKey().defaultRandom(),
+    tenantId:           uuid('tenant_id').notNull().references(() => tenants.id),
+    userId:             uuid('user_id').notNull().references(() => users.id),
+    pushDate:           text('push_date').notNull(), // YYYY-MM-DD CST
+    source:             text('source').notNull(),    // 'feigua' | 'newrank' | ...
+    // [{rank, title, video_url, plays, hotness, category, llm_analysis}]
+    topicsJson:         jsonb('topics_json').notNull().default([]),
+    openedAt:           timestamp('opened_at', { withTimezone: true }),
+    clickedTopicIndex:  integer('clicked_topic_index'),
+    usedInRunId:        uuid('used_in_run_id').references(() => workflowRuns.id),
+    createdAt:          timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index('idx_topic_pushes_tenant').on(t.tenantId),
+    index('idx_topic_pushes_user_date').on(t.userId, t.pushDate),
+    uniqueIndex('uq_topic_pushes_user_date').on(t.userId, t.pushDate),
+  ],
+);
+
+// ─── Monthly Usage ────────────────────────────────────────────────────────────
+// Per-user monthly aggregate. One row per (user, month_key).
+// Used for D23 cap (60 video clips / month) + unit economics.
+
+export const monthlyUsage = pgTable(
+  'monthly_usage',
+  {
+    id:                uuid('id').primaryKey().defaultRandom(),
+    tenantId:          uuid('tenant_id').notNull().references(() => tenants.id),
+    userId:            uuid('user_id').notNull().references(() => users.id),
+    monthKey:          text('month_key').notNull(),       // YYYY-MM CST
+    videoCount:        integer('video_count').notNull().default(0),
+    workflowRunCount:  integer('workflow_run_count').notNull().default(0),
+    totalCostFen:      integer('total_cost_fen').notNull().default(0),
+    lastUpdatedAt:     timestamp('last_updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index('idx_monthly_usage_tenant_month').on(t.tenantId, t.monthKey),
+    uniqueIndex('uq_monthly_usage_user_month').on(t.userId, t.monthKey),
+  ],
+);
+
+// ─── Compliance audit (W4-07) — append-only; /admin/dashboard reads (service role)
+
+export const complianceAuditLogs = pgTable(
+  'compliance_audit_logs',
+  {
+    id:        uuid('id').primaryKey().defaultRandom(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    tenantId:  uuid('tenant_id').notNull().references(() => tenants.id, { onDelete: 'cascade' }),
+    runId:     uuid('run_id').notNull().references(() => workflowRuns.id, { onDelete: 'cascade' }),
+    userId:    uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+    action:    text('action').notNull(),
+    detail:    jsonb('detail').notNull().default({}).$type<Record<string, unknown>>(),
+  },
+  (t) => [
+    index('idx_compliance_tenant_time').on(t.tenantId, t.createdAt),
+    index('idx_compliance_run').on(t.runId),
+  ],
+);
