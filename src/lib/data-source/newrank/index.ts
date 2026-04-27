@@ -17,3 +17,7 @@ export {
 export { NewrankClient, getDefaultNewrankClient } from './client';
 export type { NewrankConfig } from './config';
 export { loadNewrankConfig, isNewrankConfigured } from './config';
+export type { NewrankAvroRecord, DecodeResult } from './avro-reader';
+export { decodeNewrankAvroBuffer } from './avro-reader';
+export type { NormalizedTrendingItem } from './normalize';
+export { normalizeTrendingRecord, normalizeTrendingRecords } from './normalize';

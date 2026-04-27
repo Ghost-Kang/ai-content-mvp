@@ -5,7 +5,9 @@ export interface NewrankConfig {
   baseUrl: string;
 }
 
-const DEFAULT_BASE_URL = 'https://api.newrank.cn/api/v2/custom/wx';
+// Confirmed by 新榜 BD 2026-04-26: full endpoint =
+//   POST https://api.newrank.cn/api/v2/custom/hub/htkj/file/list
+const DEFAULT_BASE_URL = 'https://api.newrank.cn/api/v2/custom/hub';
 
 export function loadNewrankConfig(): NewrankConfig {
   const apiKey  = process.env.NEWRANK_API_KEY;

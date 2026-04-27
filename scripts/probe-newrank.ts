@@ -48,8 +48,12 @@ function parseArgs(argv: string[]): CliArgs {
 }
 
 function defaultDate(): string {
+  // Empirical (D31 probe 2026-04-26): files for T-1 are always empty,
+  // T-2 day typically has ks/xhs/bz ready but dy lags, T-3 has all 4
+  // platforms present. Use T-3 as the safe default so a fresh probe
+  // exits green without the caller guessing dates.
   const d = new Date();
-  d.setUTCDate(d.getUTCDate() - 2);   // T+2 lag
+  d.setUTCDate(d.getUTCDate() - 3);
   return d.toISOString().slice(0, 10);
 }
 
@@ -142,10 +146,15 @@ async function main() {
   const head = buf.slice(0, 8);
   const headHex = head.toString('hex');
   let formatHint = 'unknown';
-  if (head[0] === 0x50 && head[1] === 0x4B)        formatHint = 'zip / xlsx (PK header)';
-  else if (head[0] === 0x7B || head[0] === 0x5B)   formatHint = 'json (starts with { or [)';
-  else if (head[0] === 0xEF && head[1] === 0xBB)   formatHint = 'utf-8 BOM text (likely csv/tsv)';
-  else if (head[0] >= 0x20 && head[0] <= 0x7E)     formatHint = 'plain text (likely csv/tsv/json)';
+  // Avro OCF magic = "Obj\x01" (0x4f 0x62 0x6a 0x01). Check before the
+  // generic "plain text" branch — "Obj" alone is 3 printable ASCII bytes
+  // and would otherwise be mis-labelled.
+  if (head[0] === 0x4F && head[1] === 0x62 && head[2] === 0x6A && head[3] === 0x01) {
+    formatHint = 'avro OCF (Obj\\x01 magic)';
+  } else if (head[0] === 0x50 && head[1] === 0x4B)        formatHint = 'zip / xlsx (PK header)';
+  else if (head[0] === 0x7B || head[0] === 0x5B)          formatHint = 'json (starts with { or [)';
+  else if (head[0] === 0xEF && head[1] === 0xBB)          formatHint = 'utf-8 BOM text (likely csv/tsv)';
+  else if (head[0] >= 0x20 && head[0] <= 0x7E)            formatHint = 'plain text (likely csv/tsv/json)';
   console.log(`   first 8 bytes: ${headHex}  → ${formatHint}`);
 
   const previewBytes = Math.min(buf.length, 800);
@@ -154,8 +163,10 @@ async function main() {
   console.log(previewText);
   console.log('--- end preview ---');
 
-  // Save sample for offline inspection
-  const outDir  = path.resolve(__dirname, '../../docs/research');
+  // Save sample for offline inspection. `__dirname` = app/scripts, so
+  // `../docs/research` = app/docs/research (the one that exists). Old
+  // path '../../docs/research' resolved to repo root and ENOENT'd.
+  const outDir  = path.resolve(__dirname, '../docs/research');
   const safeName = firstUrlOK.name.replace(/[^\w.-]/g, '_');
   const outPath = path.join(outDir, `newrank_sample_${args.date}_${firstUrlOK.platform}_${safeName}`);
   try {

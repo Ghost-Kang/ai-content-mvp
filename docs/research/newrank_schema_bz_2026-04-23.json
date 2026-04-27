@@ -1,0 +1,154 @@
+{
+  "type": "record",
+  "name": "DailyAvro",
+  "namespace": "cn.newrank.api.custom.project.schedule.biz.ac.common.avro",
+  "fields": [
+    {
+      "name": "avatar",
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    {
+      "name": "collectNum",
+      "type": [
+        "long",
+        "null"
+      ]
+    },
+    {
+      "name": "commentNum",
+      "type": [
+        "long",
+        "null"
+      ]
+    },
+    {
+      "name": "cover",
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    {
+      "name": "description",
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    {
+      "name": "duration",
+      "type": [
+        "long",
+        "null"
+      ]
+    },
+    {
+      "name": "fansNum",
+      "type": [
+        "long",
+        "null"
+      ]
+    },
+    {
+      "name": "firstCategory",
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    {
+      "name": "interactNum",
+      "type": [
+        "long",
+        "null"
+      ]
+    },
+    {
+      "name": "likeNum",
+      "type": [
+        "long",
+        "null"
+      ]
+    },
+    {
+      "name": "nickname",
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    {
+      "name": "opusId",
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    {
+      "name": "publishTime",
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    {
+      "name": "rank",
+      "type": [
+        "long",
+        "null"
+      ]
+    },
+    {
+      "name": "secondCategory",
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    {
+      "name": "shareNum",
+      "type": [
+        "long",
+        "null"
+      ]
+    },
+    {
+      "name": "title",
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    {
+      "name": "uid",
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    {
+      "name": "updateTime",
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    {
+      "name": "url",
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    {
+      "name": "viewNum",
+      "type": [
+        "long",
+        "null"
+      ]
+    }
+  ]
+}

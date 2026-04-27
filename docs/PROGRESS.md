@@ -1,13 +1,36 @@
 # PROGRESS — AI 短视频内容工作流平台 (v3.0 PIVOT)
 
-**Last updated**: 2026-04-26（W4-01 冻结说明 · 合规审计 003 · export_overrides · typecheck 全绿）
-**Resume point**: 🟢 **W1 全绿 + W2-01..W2-07b 全绿 + W2-04 真 API 验完 + W3-01..09 + W4-07 锁定 + D31 (新榜签) + D32 (Seedance pricing) + D33 (默认 480p) + D34 (单位经济重算)**。W2-04 step 3 实跑 5/5 success @ 720p · mean 1m27s · cost 由 token-based billing（¥15/M tokens）实测，非 D24 估算。Step 4 (50 跑) 已 ✅ skipped — pricing 由控制台 + 1 次 480p 测量定死。**默认 480p / 60条/月 = 37% 毛利**，720p 留作付费升级档。`storage:probe` ✅ 已建 bucket。
-**Current phase**: 🟢 **进入 W4 选题节点 + W5 内测准备** — 7-week launch (06-12) on track（pre-sprint 已带跑 ~50% 工程量）· **新榜（D31 已签）侧 API 文档目前仍不齐**，W4-01 以「文档齐/可调用清单为证」为 Gate，缺口期不盲接 HTTP 假 schema。
+**Last updated**: 2026-04-26（新榜 probe + Avro schema 4 平台全部 dump；client 层不改；W4-01 gate 解除）
+**Resume point**: 🟢 **W1 全绿 + W2-01..W2-07b 全绿 + W2-04 真 API 验完 + W3-01..09 + W4-07 锁定 + D31 (新榜签 + 04-26 probe) + D32 (Seedance pricing) + D33 (默认 480p) + D34 (单位经济重算)**。W2-04 step 3 实跑 5/5 success @ 720p · mean 1m27s · cost 由 token-based billing（¥15/M tokens）实测，非 D24 估算。Step 4 (50 跑) 已 ✅ skipped — pricing 由控制台 + 1 次 480p 测量定死。**默认 480p / 60条/月 = 37% 毛利**，720p 留作付费升级档。`storage:probe` ✅ 已建 bucket。
+**Current phase**: 🟢 **进入 W4 选题节点 + W5 内测准备** — 7-week launch (06-12) on track（pre-sprint 已带跑 ~50% 工程量）· **新榜 D31 真文件已拿到**：`.avro` OCF（codec=null，未压缩）、4 平台 schema 各落 `app/docs/research/newrank_schema_<p>_2026-04-23.json`；**W4-01 不再 blocked**，parser 进入设计阶段。
 
-**W4-01 / 新榜 冻结（至文档/清单到位前）**：
-- **不写的代码**：对「新榜/供应商」的盲接 HTTP 与未文档化字段；避免上线后全链路调不通回滚。
-- **允许跑内测**：`topic_pushes.source` 已含 `manual`；运营侧人工选题/表格导入/mock 列表，选题节点可先 **stub 成「从 manual/当日表选」** 不调外网。
-- **可并行、与 OpenAPI 版本正交**：自有 LLM spend/日 cap/硬 kill、合规审计、导出 — 不依赖新榜发版时间。
+**W4-01 / 新榜 真实情况（2026-04-26 probe 结论）**：
+- **Client 层（不改）**：
+  - `lib/data-source/newrank/{types,config,client}.ts` — `POST /htkj/file/list`、header `key: <apiKey>`、body `{platform,date}`、resp `{requestId,code,msg,data:[{url,md5,name}]}` 契约与线上 100% 对得上；4 platforms (dy/ks/xhs/bz) + 401/403/429/502/503/10001/10002 分类 + 重试决策 + per-platform 隔离（一个平台挂不拖累其它 3 个）都齐。
+  - `scripts/test-newrank-client.ts`（`pnpm ds:test:newrank`）— **12 组离线单测、60+ 断言全绿、无网络无 key**。契约锁定；后续任何改动都必须能保持 12 组全绿。
+- **已修（本轮 probe 中发现）**：
+  - `scripts/probe-newrank.ts` 保存路径 bug：从 `../../docs/research` → `../docs/research`（原来写到 repo 根 ENOENT，现在落在 `app/docs/research/`）。
+  - `scripts/probe-newrank.ts` 默认日期：从 T-2 改成 T-3（实测 T-1 全空、T-2 dy 常滞后、**T-3 4 平台稳有**）。
+  - `scripts/probe-newrank.ts` format sniffer：增加 Avro OCF 识别（magic `Obj\x01`），避免再把 `.avro` 误判成 "plain text"。
+- **新增工具**：`scripts/dump-newrank-schema.ts`（`pnpm ds:dump:newrank [--date=] [--platform=]`）— 手工解 Avro OCF header（无 avro lib 依赖）拿 `avro.schema` JSON，落 `app/docs/research/newrank_schema_<p>_<date>.json`，打印扁平字段列表。
+- **文件真相**：
+  - 格式：`.avro`（Apache Avro OCF，magic `Obj\x01`），codec=`null`（未压缩）。每平台每天 1 文件，Top 500 日榜，大小 300-500 KB 量级。
+  - 命名：`htkj_<platform>_rankTop500_daily_data_YYYYMMDD.avro`。
+  - 发布节奏：**T-1 全空、T-2 ks/xhs/bz 到位 dy 常滞后、T-3 4 平台全到位**。
+- **Schema 4 平台不一致（W4-01 要写规整化层，不是 4 个独立 parser）**：
+  | 平台 | 字段数 | 分类字段命名 | 独有 | 缺失 |
+  |---|---|---|---|---|
+  | dy | 22 | `opusFirstCategory` / `opusSecondCategory` | `topics` | `title`, `viewNum` |
+  | ks | 22 | `opusFirstCategory` / `opusSecondCategory` | `authorType`, `viewNum` | `title` |
+  | xhs | 23 | `firstCategory` / `secondCategory` | `title` | `viewNum` |
+  | bz | 21 | `firstCategory` / `secondCategory` | `title`, `viewNum` | `account` |
+
+  共有骨架：`rank / opusId / url / uid / nickname / fansNum / cover / description / duration / type / publishTime / updateTime / likeNum / commentNum / shareNum / collectNum / interactNum`。所有字段都是 `[T, "null"]` 可空 union。
+- **W4-01 待做（本轮不动，属于选题节点 ticket）**：
+  1. Avro OCF reader：codec=null + 全 record 是 primitive union，约 120 行手写即可；或直接引入 `avsc`（~70kb，标准选择）。先倾向 `avsc`，省 maintenance。
+  2. `NormalizedTrendingItem`：把 4 平台字段 flatten 成一个统一下游内部类型（`firstCategory`/`secondCategory` 不带 opus 前缀；`playCount?` 仅 ks/bz 有值；`title?` 仅 xhs/bz 有值）。
+  3. 选题节点：`first/secondCategory` + `interactNum`/`likeNum` 做排序和分桶；**dy 选题要加 T-3 / T-4 fallback** 逻辑（节点内部选日期，不让 client 决定）。
+- **允许跑内测**：`topic_pushes.source` 已含 `manual`；在 W4-01 parser 落地前，运营侧人工选题/表格导入仍是 primary path。
 - **库**：`pnpm db:migrate:compliance`（003 `export_overrides` + `compliance_audit_logs`）；在跑 `wf:test:export:runner` case 8 前需执行。关闭 disclosure 仅经 `workflow_runs.export_overrides`（SQL/ops），UI 不暴露；导出成功时写审计条，`/admin/dashboard` 只读表。
 
 **内测前 Preview 横切**（`vercel deploy --target=preview` 后 15–20 min）：
@@ -39,7 +62,7 @@
 - [x] `pnpm storage:probe` 成功（2026-04-25），`workflow-exports` bucket 已建（50 MiB cap），upload+sign+delete 全过
 
 **🔴 真正还要等的事**：
-1. **新榜 API 文档不齐全** — D31 已签，**W4-01 以接口文档可实施为 Gate**；补齐（或你贴可调用清单/截图/链接）后再落地；空档可 mock/人工选题，不硬写假接口
+1. ~~新榜文件格式未知~~ → ✅ **2026-04-26 probe 落地**：`.avro` OCF (codec=null)，4 平台各 schema 已 dump 到 `app/docs/research/newrank_schema_*.json`；client 契约 + 12 组单测仍绿。下一步是 W4-01 parser + `NormalizedTrendingItem`（ticket 里做）。
 2. ~~`SEEDANCE_API_KEY` 等审批~~ → ✅ **已提供并已用于 W2-04 真跑**（dev/local 与 deploy env 以实际配置为准，不再标「等 key」）
 3. 内测 5 名种子用户在 W7 前 deck 排期 — 已访谈过 3 人（家琳、苗苗、永航）+ 找 P4 + 1 名补员
 

@@ -4,7 +4,7 @@
 // can navigate both layers.
 //
 // Single endpoint:
-//   POST https://api.newrank.cn/api/v2/custom/wx/htkj/file/list
+//   POST https://api.newrank.cn/api/v2/custom/hub/htkj/file/list
 //   Header: key: <NEWRANK_API_KEY>
 //   Body:   { platform: "dy"|"ks"|"xhs"|"bz", date: "YYYY-MM-DD" }
 //

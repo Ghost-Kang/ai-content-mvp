@@ -40,7 +40,10 @@
     "llm:probe": "tsx --env-file=.env.local scripts/probe-llm.ts",
     "vg:test:seedance": "tsx --env-file=.env.local scripts/test-seedance-client.ts",
     "vg:probe:seedance": "tsx --env-file=.env.local scripts/probe-seedance-poc.ts",
-    "ds:probe:newrank":  "tsx --env-file=.env.local scripts/probe-newrank.ts"
+    "ds:test:newrank": "tsx scripts/test-newrank-client.ts",
+    "ds:test:newrank:parser": "tsx scripts/test-newrank-parser.ts",
+    "ds:probe:newrank": "tsx --env-file=.env.local scripts/probe-newrank.ts",
+    "ds:dump:newrank": "tsx --env-file=.env.local scripts/dump-newrank-schema.ts"
   },
   "dependencies": {
     "@clerk/nextjs": "^6.39.2",
@@ -54,6 +57,7 @@
     "@trpc/server": "^11.16.0",
     "@upstash/qstash": "^2.10.1",
     "@upstash/redis": "^1.37.0",
+    "avsc": "^5.7.9",
     "drizzle-kit": "^0.31.10",
     "drizzle-orm": "^0.45.2",
     "jszip": "^3.10.1",
