@@ -14,7 +14,12 @@ import { useState } from 'react';
 import { trpc } from '@/lib/trpc-client';
 import { friendlyFromAny } from '@/lib/error-messages';
 import type { NormalizedTrendingItem } from '@/lib/data-source/newrank';
-import type { TopicAnalysisResult } from '@/lib/topic-analysis/index';
+// Import from `/types` (leaf) instead of `/index` — the facade pulls
+// `executeWithFallback` → `db` → `postgres`, none of which can be
+// bundled into a client chunk. `import type` usually erases at compile
+// time, but routing through the leaf is the safer convention now that
+// NichePanel has the same rule.
+import type { TopicAnalysisResult } from '@/lib/topic-analysis/types';
 import { useNiche } from './use-niche';
 
 interface Props {

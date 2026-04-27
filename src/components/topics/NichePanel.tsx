@@ -9,7 +9,12 @@
 
 import { useState } from 'react';
 import { useNiche } from './use-niche';
-import { NICHE_MAX_CHARS } from '@/lib/topic-analysis/index';
+// Import from `/types` (leaf, no server-only deps) instead of `/index` —
+// the facade entry point pulls in `executeWithFallback` → `db` → the
+// `postgres` driver, which Next.js refuses to bundle into a client
+// chunk (fs/tls/perf_hooks are Node-only). This keeps the constant
+// available without dragging the runtime in.
+import { NICHE_MAX_CHARS } from '@/lib/topic-analysis/types';
 
 export function NichePanel() {
   const { niche, setNiche } = useNiche();
