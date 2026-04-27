@@ -38,6 +38,8 @@
     "wf:test:admin": "tsx scripts/test-admin-auth.ts",
     "storage:probe": "tsx --env-file=.env.local scripts/probe-storage.ts",
     "wf:probe": "tsx --env-file=.env.local scripts/probe-workflow-v3.ts",
+    "wf:probe:full": "tsx --env-file=.env.local scripts/probe-workflow-full-v3.ts",
+    "wf:probe:full:dry": "WORKFLOW_VIDEO_DRY_RUN=1 PROBE_VIDEO_MAX_FRAMES=17 tsx --env-file=.env.local scripts/probe-workflow-full-v3.ts",
     "wf:probe:storyboard": "tsx --env-file=.env.local scripts/probe-storyboard-v0.ts",
     "wf:fixture:script": "tsx --env-file=.env.local scripts/generate-script-fixture.ts",
     "llm:probe": "tsx --env-file=.env.local scripts/probe-llm.ts",

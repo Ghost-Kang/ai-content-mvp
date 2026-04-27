@@ -6,7 +6,7 @@
 //
 // NEVER import provider SDKs / fetch URLs outside `src/lib/video-gen/providers/`.
 
-export type VideoProviderName = 'seedance';
+export type VideoProviderName = 'seedance' | 'dry-run';
 
 /** Output resolution. Limited to what Seedance 1.5 Pro supports today. */
 export type VideoResolution = '480p' | '720p' | '1080p';

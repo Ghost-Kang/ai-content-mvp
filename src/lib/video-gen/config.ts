@@ -13,8 +13,20 @@ export interface SeedanceConfig {
   costPerMTokensFen: number;
 }
 
+/**
+ * Empty config shape for `'dry-run'`. The stub provider needs no env, but
+ * the type system needs an entry per VideoProviderName so the generic
+ * `getVideoProviderConfig<P>` indexer compiles. Providers that have a
+ * non-empty config own their own interface (see SeedanceConfig).
+ */
+export interface DryRunConfig {
+  /** Reserved for future tunables (e.g. simulated latency); empty today. */
+  readonly _kind: 'dry-run';
+}
+
 export interface VideoProviderConfig {
-  seedance: SeedanceConfig;
+  seedance:  SeedanceConfig;
+  'dry-run': DryRunConfig;
 }
 
 const DEFAULT_SEEDANCE_BASE_URL = 'https://ark.cn-beijing.volces.com';
@@ -46,6 +58,10 @@ export function getVideoProviderConfig<P extends VideoProviderName>(
           process.env.SEEDANCE_COST_PER_M_TOKENS_FEN ?? DEFAULT_SEEDANCE_COST_PER_M_TOKENS_FEN,
         ),
       } as VideoProviderConfig[P];
+    case 'dry-run':
+      // Stub config — DryRunVideoProvider doesn't actually call this, but
+      // the union must be exhaustive so the indexer compiles.
+      return { _kind: 'dry-run' } as VideoProviderConfig[P];
     default:
       throw new Error(`Unknown video provider: ${String(name)}`);
   }
