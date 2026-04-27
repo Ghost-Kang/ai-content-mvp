@@ -1,8 +1,8 @@
 # PROGRESS — AI 短视频内容工作流平台 (v3.0 PIVOT)
 
-**Last updated**: 2026-04-27（W4-03 选题分析：topic.analyze + /topics AI 分析 UI + 10 fixture 离线测试）
-**Resume point**: 🟢 **W1 全绿 + W2-01..W2-07b 全绿 + W2-04 真 API 验完 + W3-01..09 + W4-07 锁定 + D31 (新榜签 + 04-26 probe) + D32 (Seedance pricing) + D33 (默认 480p) + D34 (单位经济重算)**。W2-04 step 3 实跑 5/5 success @ 720p · mean 1m27s · cost 由 token-based billing（¥15/M tokens）实测，非 D24 估算。Step 4 (50 跑) 已 ✅ skipped — pricing 由控制台 + 1 次 480p 测量定死。**默认 480p / 60条/月 = 37% 毛利**，720p 留作付费升级档。`storage:probe` ✅ 已建 bucket。
-**Current phase**: 🟢 **进入 W4 选题节点 + W5 内测准备** — 7-week launch (06-12) on track（pre-sprint 已带跑 ~50% 工程量）· **新榜 W4-01 parser 数据层已交付**：`.avro` OCF 可解码、4 平台 → `NormalizedTrendingItem` 已规整化、`pnpm ds:test:newrank:parser` 4 fixture × 62 断言全绿；**剩选题节点本身 + dy 日期 fallback 策略**。
+**Last updated**: 2026-04-27 晚（W4 工程链全闭环 · 真 e2e ¥7.77 已验 · SRT 字幕修复落地）
+**Resume point**: 🟢 **W1-W4 全绿 · 真 17 帧 e2e ¥7.77 已验 · 合规链已闭环（CN LLM 路由 + SRT 字幕）· 单 invocation 730s 实测确认视频续跑是 prod 必需路径**。W2-04 step 3 实跑 5/5 success @ 720p · mean 1m27s · cost 由 token-based billing（¥15/M tokens）实测，非 D24 估算。**默认 480p / 60条/月 = 37% 毛利**，720p 留作付费升级档。`storage:probe` ✅ 已建 bucket。
+**Current phase**: 🟢 **W5 内测准备** — 7-week launch (06-12) on track。剩下都是用户判断 / 外部动作：(a) Vercel preview deploy + UI 走真用户路径 (b) 找第 5 个内测用户 (c) 把已验过的 zip 发给 P1-P4 试用。工程侧仅余 W4-01 真正收尾（topic_pushes 选题分桶 + dy T-4 fallback），但对 5 人内测低杠杆、建议 defer。
 
 **W4-01 / 新榜 真实情况（2026-04-26 probe 结论）**：
 - **Client 层（不改）**：
@@ -40,18 +40,77 @@
 - **允许跑内测**：`topic_pushes.source` 已含 `manual`；选题节点未上前，运营侧人工选题/表格导入仍是 primary path。
 - **库**：`pnpm db:migrate:compliance`（003 `export_overrides` + `compliance_audit_logs`）；在跑 `wf:test:export:runner` case 8 前需执行。关闭 disclosure 仅经 `workflow_runs.export_overrides`（SQL/ops），UI 不暴露；导出成功时写审计条，`/admin/dashboard` 只读表。
 
-**W4-03-V3 选题分析（2026-04-27 已交付）**：
+**W4-03-V3 选题分析（2026-04-27 已交付，commit `6e907cf`）**：
 - ✅ 新增 `src/lib/topic-analysis/` 模块：`prompt.ts`、`validator.ts`、`cache.ts`、`index.ts`、`types.ts`（统一走 `executeWithFallback` + 成本估算 + Redis 24h TTL）
 - ✅ 新增 tRPC `topic.analyze`（`src/server/routers/topic.ts`）并接入 `appRouter`
 - ✅ `/topics` 页面接入交互：`NichePanel`（localStorage niche）+ `TopicCard` 按需「AI 分析」按钮与结果面板
 - ✅ 离线测试：`scripts/test-topic-analysis.ts`（10 fixtures，mock llmCall，无网络），门槛 `>= 9/10`，实测 `10/10` 通过
 - ✅ 校验：`pnpm typecheck`、`pnpm lint`、`pnpm topic:test:analysis` 全绿
 
+**W4-05 + W4-06 选题节点 + 选题 UI（2026-04-26，commit `ca19946`）**：
+- ✅ `TopicNodeRunner`（pass-through，step_index 0，`source: manual|trending` + 可选 `sourceMeta`），ScriptNode upstream-or-fallback 接入；orchestrator 默认 + Full 都升 5 节点
+- ✅ `/topics` 服务端渲染 trending 选题页，4 平台 × T-3 默认，12h `unstable_cache`，「用这条」CTA 注 `?topic=&source=trending` 进 NewRunForm
+- ✅ Dashboard 第 4 张卡 + 「热门选题」入口
+- ✅ `pnpm wf:test:topic:runner` 30/30 断言绿
+- 🟡 已知缺：workflow_runs 暂无 `source/sourceMeta` 列，trending CTA 提交后 provenance 丢失（schema migration 单独 ticket）
+
+**视频续跑链（2026-04-27，commit `cd906b3`）**：
+- ✅ `WORKFLOW_VIDEO_MAX_FRAMES_PER_INVOCATION=2` 默认（worker 路径），N 帧分 ⌈N/2⌉ 次 invocation 渲染
+- ✅ 每次写 `workflow_steps.outputJson` checkpoint，下次从 checkpoint 续渲未渲帧
+- ✅ `VIDEO_CONTINUE_REQUIRED` 标记 → worker `route.ts` 抓到后用 `@upstash/qstash` Client 重新 enqueue 一次 worker
+- ✅ `wf:test:video:runner` case 7 实跑：5 帧分 3 次 invocation (2+2+1) 全绿
+- ✅ **真 17 帧 probe 实测验证必要性**：单 invocation 730.1s（655s 在视频节点）远超 300s Vercel cap
+
+**LLM router CN 合规修复（2026-04-27，commit `409dd89`）**：
+- ❌ Cursor commit `e3c1968` 把 `openai` 加进了 CN 的 fallback 链以缓解 Kimi 限流，触《数据安全法》/《个人信息保护法》（CN 用户数据不允许出境）
+- ✅ CN 路由回到 `['kimi']` 单 domestic provider；INTL 仍 `[kimi, openai]`
+- ✅ Module-load IIFE guard：将来任何 edit 把 foreign provider 塞回 CN 表，import 时直接炸（build-time 自打脸）
+- ✅ `resolveProviderChain` dynamic 路径也防一手：CN 请求带 `preferredProvider: 'openai'` silently drop
+- ✅ `pnpm llm:test:router` 27 断言锁死规则
+- 后续 CN Kimi 真限流时加 `qwen`/`ernie`（domestic），**不要**再加 openai/anthropic
+
+**客户端 bundle 修复（2026-04-27，commit `55ad001`）**：
+- ❌ Cursor `6e907cf` 让 `NichePanel.tsx` 从 `@/lib/topic-analysis/index` 拉常量，间接把 postgres driver 打到客户端 bundle，`next build` 直接挂
+- ✅ NichePanel + TopicCard 改从 leaf `topic-analysis/types` import，bundle 干净；`/topics` chunk 从 219 B → 6.2 kB（合理交互成本）
+
+**Dry-run 视频 provider（2026-04-27，commit `8f7de35`）**：
+- ✅ 新增 `src/lib/video-gen/providers/dry-run.ts` + `WORKFLOW_VIDEO_DRY_RUN=1` env gate，`getDefaultVideoProvider()` 切到 stub
+- ✅ Stub `submit/poll` 立即返回 4 字节 `data: video/mp4;base64,AAAAAA==` URL（Node fetch 原生支持 data:，bundle 下载零改动）
+- ✅ Token count + costPerMTokensFen 与真 Seedance 对齐，cap 数学不变
+- ✅ `pnpm wf:probe:full:dry`（17 帧）= 119.6s 全绿；`pnpm wf:probe:full` = 真 Seedance（默认 3 帧，`PROBE_VIDEO_MAX_FRAMES=17` 全跑）
+- ⚠️ **生产 / preview env 永不能设 `WORKFLOW_VIDEO_DRY_RUN`**——每次 run 出 placeholder zip
+
+**真 17 帧 e2e probe（2026-04-27，cost ¥7.77）**：
+| 节点 | 时长 | cost |
+|---|---|---|
+| topic | 1.1s | 0 |
+| script | 17.0s | 0 |
+| storyboard | 20.4s | 0 |
+| video | 655.5s（17 × ~38s 真 Seedance）| ¥7.77 |
+| export | 19.8s | 0 |
+| **合计** | **730.1s** | **¥7.77** |
+
+- ✅ Seedance auth + 17 帧 submit + poll loop + 真 MP4 下载 + Supabase upload + signed URL 全过
+- ✅ Zip 19.7 MB · script.txt 9.3KB + project.fcpxml 6.3KB + 17 真 480p MP4 (629KB-2.2MB)
+- ✅ FCPXML 1.13 结构合规：竖屏 720×1280 30fps，相对路径 asset，rational duration
+- ❌ **Verdict: 单 invocation 730s 远超 300s Vercel cap** → 视频续跑（cd906b3）是 prod 必需路径
+- 工具：`pnpm tsx --env-file=.env.local scripts/find-recent-export.ts` re-sign 拿下载 URL（probe cleanup 只清 DB 行，storage object 留着）
+
+**SRT 字幕修复（2026-04-27，commit `4b92f98`）**：
+- ❌ 用户实测：剪映 import FCPXML 后**字幕 + 声音都没出**——剪映静默丢弃带 `Basic Title.moti` ref 的 `<title>` element（FCP 专属模板），W3-03 合规 disclosure 完全不上屏 → MVP-1 实际不合规（违反互联网信息服务深度合成管理规定 第十七条）
+- ✅ Bundle 多写两份 SRT（剪映「文件 → 导入 → 字幕」原生认）：
+  - `subtitles/disclosure.srt`：单条全片合规字幕「本视频由 AI 辅助生成」
+  - `subtitles/narration.srt`：每帧旁白用 `voiceover` + 累计时间码
+- ✅ README 大改：§1.2 字幕导入步骤 + §三「视频无音轨」+ 三种配音方案（剪映 TTS / 真人 / 配音同事）+ 合规节明确「不导入 SRT = 实际不合规」
+- ✅ `pnpm wf:test:export:bundle` 50/50 断言绿（新增 12 条 SRT 断言）
+- ⚠️ Seedance 是 text-to-video，生成 mp4 **无音轨**——这是 MVP-1 设计（用户在剪映里二剪），README 已写明
+
 **内测前 Preview 横切**（`vercel deploy --target=preview` 后 15–20 min）：
-1. `vercel env pull` 与本机关键变量（`SEEDANCE` / `DATABASE_URL` / `ADMIN_USER_IDS` / Supabase）**与 preview 对齐**；避免「本地绿、线上演」。
-2. 跑一条 5 节点全链路 → SSE、导出 zip、**剪映打开** 水印/时长。
+1. `vercel env pull` 与本机关键变量（`SEEDANCE` / `DATABASE_URL` / `ADMIN_USER_IDS` / Supabase / `KIMI_API_KEY` / `NEWRANK_API_KEY` / `UPSTASH_REDIS_*` / `QSTASH_TOKEN`）**与 preview 对齐**；避免「本地绿、线上演」。
+2. 跑一条 5 节点全链路 → SSE、导出 zip、**剪映打开 + 单独导入 disclosure.srt + narration.srt** 验合规字幕真出。
 3. `/admin/dashboard`：4 KPI + **合规表** 可渲染（003 后）；首页运营入口仅白名单见。
 4. 回归 `pnpm typecheck` + 关键 `wf:test:*`（发版前 CI 或本机）。
+5. **永不在 preview env 设 `WORKFLOW_VIDEO_DRY_RUN`**。
 
 ---
 
