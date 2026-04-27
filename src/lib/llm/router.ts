@@ -1,23 +1,23 @@
 import type { LLMRequest, ProviderName, LLMRegion } from './types';
 
-// MVP v2.0: kimi (Moonshot) only, both regions. Other providers remain in
-// the codebase so we can fan out later without a refactor — just add them
-// back into these chains and ensure their env vars are set.
+// Primary route is still Kimi for CN-first cost/latency. Add OpenAI as a
+// hot standby so transient Kimi throttling does not block workflow probes
+// and long-running chained executions.
 const ROUTING_TABLE: Record<
   LLMRegion,
   Record<LLMRequest['intent'], ProviderName[]>
 > = {
   CN: {
-    strategy:      ['kimi'],
-    draft:         ['kimi'],
-    channel_adapt: ['kimi'],
-    diff_annotate: ['kimi'],
+    strategy:      ['kimi', 'openai'],
+    draft:         ['kimi', 'openai'],
+    channel_adapt: ['kimi', 'openai'],
+    diff_annotate: ['kimi', 'openai'],
   },
   INTL: {
-    strategy:      ['kimi'],
-    draft:         ['kimi'],
-    channel_adapt: ['kimi'],
-    diff_annotate: ['kimi'],
+    strategy:      ['kimi', 'openai'],
+    draft:         ['kimi', 'openai'],
+    channel_adapt: ['kimi', 'openai'],
+    diff_annotate: ['kimi', 'openai'],
   },
 };
 

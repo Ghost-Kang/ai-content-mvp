@@ -26,7 +26,7 @@ import {
   workflowSteps,
   monthlyUsage,
 } from '../src/db';
-import { VideoGenNodeRunner } from '../src/lib/workflow/nodes/video';
+import { VIDEO_CONTINUE_REQUIRED, VideoGenNodeRunner } from '../src/lib/workflow/nodes/video';
 import { BaseVideoProvider } from '../src/lib/video-gen/providers/base';
 import {
   VideoGenError,
@@ -402,6 +402,73 @@ async function caseUpstreamMissing() {
   await cleanup(f);
 }
 
+async function caseContinuationCheckpointResume() {
+  console.log('\n[case 7] continuation checkpoint — render in 3 invocations (2+2+1)');
+  const f = await seedRun('continuation');
+  const ctx = buildCtx(f, fakeStoryboardOutput(5, 5));
+
+  const prevChunk = process.env.WORKFLOW_VIDEO_MAX_FRAMES_PER_INVOCATION;
+  process.env.WORKFLOW_VIDEO_MAX_FRAMES_PER_INVOCATION = '2';
+
+  try {
+    const provider = new FakeVideoProvider(
+      [
+        { kind: 'ok', jobId: 'job-c-1' },
+        { kind: 'ok', jobId: 'job-c-2' },
+        { kind: 'ok', jobId: 'job-c-3' },
+        { kind: 'ok', jobId: 'job-c-4' },
+        { kind: 'ok', jobId: 'job-c-5' },
+      ],
+      [
+        { kind: 'snapshot', snap: okSnapshot({ videoUrl: 'https://cdn.example/c1.mp4' }) },
+        { kind: 'snapshot', snap: okSnapshot({ videoUrl: 'https://cdn.example/c2.mp4' }) },
+        { kind: 'snapshot', snap: okSnapshot({ videoUrl: 'https://cdn.example/c3.mp4' }) },
+        { kind: 'snapshot', snap: okSnapshot({ videoUrl: 'https://cdn.example/c4.mp4' }) },
+        { kind: 'snapshot', snap: okSnapshot({ videoUrl: 'https://cdn.example/c5.mp4' }) },
+      ],
+    );
+    const runner = new VideoGenNodeRunner(provider);
+
+    let thrown1: unknown;
+    try { await runner.run(ctx); } catch (e) { thrown1 = e; }
+    expect(thrown1 instanceof NodeError, 'invoke 1 throws NodeError continuation marker');
+    if (thrown1 instanceof NodeError) {
+      expect(thrown1.message.includes(VIDEO_CONTINUE_REQUIRED), 'invoke 1 error includes VIDEO_CONTINUE_REQUIRED');
+    }
+    const [step1] = await db.select().from(workflowSteps).where(eq(workflowSteps.runId, f.runId));
+    const frames1 = ((step1?.outputJson as { frames?: unknown[] } | null)?.frames ?? []).length;
+    expect(frames1 === 2, `invoke 1 checkpoint stores 2 frames (got ${frames1})`);
+
+    let thrown2: unknown;
+    try { await runner.run(ctx); } catch (e) { thrown2 = e; }
+    expect(thrown2 instanceof NodeError, 'invoke 2 throws NodeError continuation marker');
+    if (thrown2 instanceof NodeError) {
+      expect(thrown2.message.includes(VIDEO_CONTINUE_REQUIRED), 'invoke 2 error includes VIDEO_CONTINUE_REQUIRED');
+    }
+    const [step2] = await db.select().from(workflowSteps).where(eq(workflowSteps.runId, f.runId));
+    const frames2 = ((step2?.outputJson as { frames?: unknown[] } | null)?.frames ?? []).length;
+    expect(frames2 === 4, `invoke 2 checkpoint stores 4 frames (got ${frames2})`);
+
+    const result3 = await runner.run(ctx);
+    expect(result3.output.frames.length === 5, `invoke 3 returns full 5-frame output (got ${result3.output.frames.length})`);
+    expect(result3.videoCount === 5, `invoke 3 videoCount=5 (got ${result3.videoCount})`);
+    expect(provider.submitCalls.length === 5, `provider.submit called exactly 5 times total (got ${provider.submitCalls.length})`);
+    expect(provider.pollCalls.length === 5, `provider.poll called exactly 5 times total (got ${provider.pollCalls.length})`);
+
+    const [step3] = await db.select().from(workflowSteps).where(eq(workflowSteps.runId, f.runId));
+    const frames3 = ((step3?.outputJson as { frames?: unknown[] } | null)?.frames ?? []).length;
+    expect(step3?.status === 'done', `final step status=done (got ${step3?.status})`);
+    expect(frames3 === 5, `final persisted output keeps 5 frames (got ${frames3})`);
+  } finally {
+    if (prevChunk === undefined) {
+      delete process.env.WORKFLOW_VIDEO_MAX_FRAMES_PER_INVOCATION;
+    } else {
+      process.env.WORKFLOW_VIDEO_MAX_FRAMES_PER_INVOCATION = prevChunk;
+    }
+    await cleanup(f);
+  }
+}
+
 // ─── Main ─────────────────────────────────────────────────────────────────────
 
 async function main() {
@@ -413,6 +480,7 @@ async function main() {
   await caseNonRetryableSubmit();
   await caseCapMidRun();
   await caseUpstreamMissing();
+  await caseContinuationCheckpointResume();
 
   if (totalFailures === 0) {
     console.log('\n✅ All assertions pass.');
