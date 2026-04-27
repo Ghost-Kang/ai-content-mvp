@@ -1,8 +1,8 @@
 # PROGRESS — AI 短视频内容工作流平台 (v3.0 PIVOT)
 
-**Last updated**: 2026-04-26（新榜 probe + Avro schema 4 平台全部 dump；client 层不改；W4-01 gate 解除）
+**Last updated**: 2026-04-27（W4-03 选题分析：topic.analyze + /topics AI 分析 UI + 10 fixture 离线测试）
 **Resume point**: 🟢 **W1 全绿 + W2-01..W2-07b 全绿 + W2-04 真 API 验完 + W3-01..09 + W4-07 锁定 + D31 (新榜签 + 04-26 probe) + D32 (Seedance pricing) + D33 (默认 480p) + D34 (单位经济重算)**。W2-04 step 3 实跑 5/5 success @ 720p · mean 1m27s · cost 由 token-based billing（¥15/M tokens）实测，非 D24 估算。Step 4 (50 跑) 已 ✅ skipped — pricing 由控制台 + 1 次 480p 测量定死。**默认 480p / 60条/月 = 37% 毛利**，720p 留作付费升级档。`storage:probe` ✅ 已建 bucket。
-**Current phase**: 🟢 **进入 W4 选题节点 + W5 内测准备** — 7-week launch (06-12) on track（pre-sprint 已带跑 ~50% 工程量）· **新榜 D31 真文件已拿到**：`.avro` OCF（codec=null，未压缩）、4 平台 schema 各落 `app/docs/research/newrank_schema_<p>_2026-04-23.json`；**W4-01 不再 blocked**，parser 进入设计阶段。
+**Current phase**: 🟢 **进入 W4 选题节点 + W5 内测准备** — 7-week launch (06-12) on track（pre-sprint 已带跑 ~50% 工程量）· **新榜 W4-01 parser 数据层已交付**：`.avro` OCF 可解码、4 平台 → `NormalizedTrendingItem` 已规整化、`pnpm ds:test:newrank:parser` 4 fixture × 62 断言全绿；**剩选题节点本身 + dy 日期 fallback 策略**。
 
 **W4-01 / 新榜 真实情况（2026-04-26 probe 结论）**：
 - **Client 层（不改）**：
@@ -26,12 +26,26 @@
   | bz | 21 | `firstCategory` / `secondCategory` | `title`, `viewNum` | `account` |
 
   共有骨架：`rank / opusId / url / uid / nickname / fansNum / cover / description / duration / type / publishTime / updateTime / likeNum / commentNum / shareNum / collectNum / interactNum`。所有字段都是 `[T, "null"]` 可空 union。
-- **W4-01 待做（本轮不动，属于选题节点 ticket）**：
-  1. Avro OCF reader：codec=null + 全 record 是 primitive union，约 120 行手写即可；或直接引入 `avsc`（~70kb，标准选择）。先倾向 `avsc`，省 maintenance。
-  2. `NormalizedTrendingItem`：把 4 平台字段 flatten 成一个统一下游内部类型（`firstCategory`/`secondCategory` 不带 opus 前缀；`playCount?` 仅 ks/bz 有值；`title?` 仅 xhs/bz 有值）。
-  3. 选题节点：`first/secondCategory` + `interactNum`/`likeNum` 做排序和分桶；**dy 选题要加 T-3 / T-4 fallback** 逻辑（节点内部选日期，不让 client 决定）。
-- **允许跑内测**：`topic_pushes.source` 已含 `manual`；在 W4-01 parser 落地前，运营侧人工选题/表格导入仍是 primary path。
+- **W4-01 parser 层（2026-04-26 已交付）**：
+  - 依赖：`avsc@5.7.9`（生产依赖，server-only；OCF + codec 容错走 lib，不再担心 vendor 之后开 deflate/snappy）。
+  - 新模块：
+    - `src/lib/data-source/newrank/avro-reader.ts` — `decodeNewrankAvroBuffer(buf) → { records, schemaJson, codec }`，schema-agnostic、buffer-in records-out（Top 500 ≈ 数百 KB，不上 stream）。
+    - `src/lib/data-source/newrank/normalize.ts` — `NormalizedTrendingItem` 类型 + 4 个 per-platform adapter；硬规则：dy/ks 的 `opus*Category` 在适配器里去前缀变 `first/secondCategory`；`playCount?` 仅 ks/bz；`title?` 仅 xhs/bz；`authorAccount?` bz 永远 undefined；缺 `opusId` / `rank` 的 row 直接 drop（不造假 ID）。
+  - 新测试：`pnpm ds:test:newrank:parser`（`scripts/test-newrank-parser.ts`）— 用 `app/docs/research/newrank_sample_2026-04-23_<p>_*.avro` 4 个真文件作 fixture，**62 断言全绿**：每平台 500 records 解码 / required field 全填 / rank 单调 / likeCount 数值有限 / 跨平台字段契约（`playCount` 只在 ks/bz；`title` 只在 xhs/bz；`authorType` 只在 ks；`topics` 只在 dy）。
+  - **意外发现**（已纳入测试 contract）：**ks Avro schema 声明了 `opusFirstCategory/opusSecondCategory`，但实际 record 永远不带这两个 key** —— 不是 adapter bug，是源端不给。下游不能拿 ks 分类排桶。
+- **W4-01 还要做（不属本轮）**：
+  - 选题节点本身（`TopicNodeRunner`）：消费 `NormalizedTrendingItem[]`，按 `interactCount`/`likeCount` 排，按 `first/secondCategory` 分桶（**ks 跳过分类维度**），输出 `topic_pushes`。
+  - dy 日期 fallback：节点内部 T-3 → T-4 retry，不让 client 关心日期。
+  - 缓存：每平台每天 1 文件 ~400 KB，HTTP 不带 cache header；选题节点拉到的文件应落 `Vercel Blob` 或自带磁盘缓存，避免一天多次 run 都去取。
+- **允许跑内测**：`topic_pushes.source` 已含 `manual`；选题节点未上前，运营侧人工选题/表格导入仍是 primary path。
 - **库**：`pnpm db:migrate:compliance`（003 `export_overrides` + `compliance_audit_logs`）；在跑 `wf:test:export:runner` case 8 前需执行。关闭 disclosure 仅经 `workflow_runs.export_overrides`（SQL/ops），UI 不暴露；导出成功时写审计条，`/admin/dashboard` 只读表。
+
+**W4-03-V3 选题分析（2026-04-27 已交付）**：
+- ✅ 新增 `src/lib/topic-analysis/` 模块：`prompt.ts`、`validator.ts`、`cache.ts`、`index.ts`、`types.ts`（统一走 `executeWithFallback` + 成本估算 + Redis 24h TTL）
+- ✅ 新增 tRPC `topic.analyze`（`src/server/routers/topic.ts`）并接入 `appRouter`
+- ✅ `/topics` 页面接入交互：`NichePanel`（localStorage niche）+ `TopicCard` 按需「AI 分析」按钮与结果面板
+- ✅ 离线测试：`scripts/test-topic-analysis.ts`（10 fixtures，mock llmCall，无网络），门槛 `>= 9/10`，实测 `10/10` 通过
+- ✅ 校验：`pnpm typecheck`、`pnpm lint`、`pnpm topic:test:analysis` 全绿
 
 **内测前 Preview 横切**（`vercel deploy --target=preview` 后 15–20 min）：
 1. `vercel env pull` 与本机关键变量（`SEEDANCE` / `DATABASE_URL` / `ADMIN_USER_IDS` / Supabase）**与 preview 对齐**；避免「本地绿、线上演」。

@@ -29,6 +29,7 @@
     "wf:test:dispatch": "tsx --env-file=.env.local scripts/test-dispatch.ts",
     "wf:test:cascade": "tsx --env-file=.env.local scripts/test-cascade.ts",
     "wf:test:topic:runner": "tsx --env-file=.env.local scripts/test-topic-runner.ts",
+    "topic:test:analysis": "tsx --env-file=.env.local scripts/test-topic-analysis.ts",
     "wf:test:friendly": "tsx scripts/test-friendly-error.ts",
     "wf:test:frames": "tsx scripts/test-frame-editor.ts",
     "wf:test:sse": "tsx --env-file=.env.local scripts/test-sse-snapshot.ts",

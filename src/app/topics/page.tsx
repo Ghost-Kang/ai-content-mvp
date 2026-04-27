@@ -1,10 +1,16 @@
-// W4-06-V3 — Trending topic browser.
+// W4-06-V3 — Trending topic browser (W4-03 — AI 分析 inlined per card).
 //
 // Server-rendered list of newrank top-trending items across the 4
 // supported platforms (dy / ks / xhs / bz) for a chosen date.
 // Each card has a "用这条" CTA that hands the topic text to /runs/new
 // via query params; NewRunForm reads `?topic=&source=trending` and
 // pre-fills.
+//
+// W4-03 split: actual card rendering moved to
+//   `components/topics/TopicCard.tsx` (client) so we can hang an
+//   on-demand AI 分析 mutation off it; an optional `NichePanel`
+//   above the list lets the user save a niche to localStorage that
+//   is then sent with every analyze call.
 //
 // MVP-1 design choices:
 //   - No date picker UI: defaults to T-3 (the only date guaranteed to
@@ -23,7 +29,8 @@ import {
   defaultTrendingDate,
   type TrendingFetchResult,
 } from '@/lib/data-source/newrank';
-import type { NormalizedTrendingItem } from '@/lib/data-source/newrank';
+import { NichePanel } from '@/components/topics/NichePanel';
+import { TopicCard } from '@/components/topics/TopicCard';
 
 export const dynamic = 'force-dynamic';
 
@@ -55,9 +62,12 @@ export default async function TopicsPage({ searchParams }: PageProps) {
         </div>
       </header>
 
-      <main className="mx-auto max-w-6xl px-6 py-8">
+      <main className="mx-auto max-w-6xl space-y-6 px-6 py-8">
         {isNewrankConfigured() ? (
-          <TrendingContent date={dateParam} />
+          <>
+            <NichePanel />
+            <TrendingContent date={dateParam} />
+          </>
         ) : (
           <NotConfiguredNotice />
         )}
@@ -96,7 +106,7 @@ async function TrendingContent({ date }: { date?: string }) {
           {totalCount > 0 ? `今日 ${totalCount} 条候选` : '暂无候选'}
         </h2>
         <p className="mt-1 text-sm text-gray-500">
-          点击任意卡片的「用这条」即把标题预填到新工作流；选题可在新建表单里再编辑。
+          点击任意卡片的「用这条」即把标题预填到新工作流；点「AI 分析」获取「为什么火 / 怎么改造」建议。
         </p>
         <p className="mt-1 text-xs text-gray-400">
           数据源：新榜 · 默认 T-3 日期（更早数据更稳）
@@ -140,75 +150,6 @@ async function TrendingContent({ date }: { date?: string }) {
   );
 }
 
-// ─── Card ─────────────────────────────────────────────────────────────────────
-
-function TopicCard({ item }: { item: NormalizedTrendingItem }) {
-  // Pick a "topic title" — xhs/bz have explicit titles; dy/ks fall back
-  // to description (truncated). Empty string → fall back to opusId so
-  // the user still gets something to recognize.
-  const display = (item.title ?? item.description ?? '').trim();
-  const title = display.length > 0
-    ? truncate(display, 80)
-    : `(无标题 · #${item.opusId})`;
-  const useTopic = display.length > 0 ? truncate(display, 200) : `${item.platform}-${item.opusId}`;
-  const cta = `/runs/new?source=trending&topic=${encodeURIComponent(useTopic)}`;
-
-  return (
-    <div className="flex h-full flex-col justify-between rounded-lg border border-gray-200 bg-white p-4 shadow-sm transition-colors hover:border-indigo-300">
-      <div>
-        <div className="flex items-baseline justify-between text-xs text-gray-400">
-          <span className="rounded bg-gray-100 px-1.5 py-0.5 font-mono text-[10px] text-gray-600">
-            #{item.rank}
-          </span>
-          {item.authorNickname && (
-            <span className="ml-2 truncate text-right text-gray-500" title={item.authorNickname}>
-              {item.authorNickname}
-            </span>
-          )}
-        </div>
-        <p className="mt-2 line-clamp-3 text-sm text-gray-900">
-          {title}
-        </p>
-        <p className="mt-2 flex flex-wrap gap-2 text-[11px] text-gray-400">
-          {item.firstCategory && (
-            <span className="rounded bg-indigo-50 px-1.5 py-0.5 text-indigo-600">{item.firstCategory}</span>
-          )}
-          {typeof item.likeCount === 'number' && (
-            <span>♥ {compactNumber(item.likeCount)}</span>
-          )}
-          {typeof item.playCount === 'number' && (
-            <span>▶ {compactNumber(item.playCount)}</span>
-          )}
-          {typeof item.duration === 'number' && item.duration > 0 && (
-            <span>{Math.round(item.duration)}s</span>
-          )}
-        </p>
-      </div>
-
-      <div className="mt-4 flex items-center justify-between gap-2">
-        {item.url ? (
-          <a
-            href={item.url}
-            target="_blank"
-            rel="noreferrer"
-            className="text-xs text-gray-400 underline-offset-2 hover:text-gray-600 hover:underline"
-          >
-            查看原视频 ↗
-          </a>
-        ) : (
-          <span />
-        )}
-        <Link
-          href={cta}
-          className="inline-flex items-center rounded-md bg-indigo-600 px-2.5 py-1 text-xs font-medium text-white shadow-sm transition-colors hover:bg-indigo-700"
-        >
-          用这条 →
-        </Link>
-      </div>
-    </div>
-  );
-}
-
 // ─── Empty / not-configured state ─────────────────────────────────────────────
 
 function NotConfiguredNotice() {
@@ -222,19 +163,4 @@ function NotConfiguredNotice() {
       手动输入主题。
     </div>
   );
-}
-
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-
-function truncate(s: string, n: number): string {
-  if (s.length <= n) return s;
-  return s.slice(0, n - 1).trimEnd() + '…';
-}
-
-function compactNumber(n: number): string {
-  if (n < 1_000)         return String(n);
-  if (n < 10_000)        return `${(n / 1_000).toFixed(1)}k`;
-  if (n < 100_000)       return `${(n / 10_000).toFixed(1)}万`;
-  if (n < 100_000_000)   return `${Math.round(n / 10_000)}万`;
-  return `${(n / 100_000_000).toFixed(1)}亿`;
 }
