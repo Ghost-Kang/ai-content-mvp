@@ -14,7 +14,7 @@
 'use client';
 
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { trpc } from '@/lib/trpc-client';
 import { friendlyFromAny } from '@/lib/error-messages';
 
@@ -23,7 +23,15 @@ const TOPIC_MAX = 300;
 
 export function NewRunForm() {
   const router = useRouter();
-  const [topic, setTopic] = useState('');
+  // W4-06: /topics 「用这条」CTA 把候选 topic 通过 ?topic= 传过来。
+  // sourceMeta 在 MVP-1 仅显式提示 UI 是从 trending 来的，后端不存
+  // (workflow_runs 暂无 source 列；TopicNodeRunner.buildInput 仍把 source
+  // 标成 'manual')。要真存 sourceMeta 等加 schema migration。
+  const searchParams = useSearchParams();
+  const initialTopic = (searchParams.get('topic') ?? '').slice(0, TOPIC_MAX);
+  const fromTrending = searchParams.get('source') === 'trending';
+
+  const [topic, setTopic] = useState(initialTopic);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
@@ -55,6 +63,11 @@ export function NewRunForm() {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-5">
+      {fromTrending && initialTopic && (
+        <div className="rounded-md bg-indigo-50 px-3 py-2 text-xs text-indigo-700 ring-1 ring-inset ring-indigo-200">
+          已从 <span className="font-medium">「热门选题」</span> 预填，可直接修改后启动。
+        </div>
+      )}
       <div>
         <label htmlFor="topic" className="block text-sm font-medium text-gray-900">
           主题

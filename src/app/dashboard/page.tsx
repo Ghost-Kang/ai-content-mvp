@@ -26,7 +26,7 @@ export default async function DashboardPage() {
         </div>
 
         <div
-          className={`grid gap-4 ${showAdminCard ? 'sm:grid-cols-2 lg:grid-cols-3' : 'sm:grid-cols-2'}`}
+          className={`grid gap-4 sm:grid-cols-2 ${showAdminCard ? 'lg:grid-cols-4' : 'lg:grid-cols-3'}`}
         >
           <Link
             href="/runs"
@@ -35,6 +35,15 @@ export default async function DashboardPage() {
             <p className="text-sm font-medium text-indigo-600">v3 Workspace</p>
             <p className="mt-1 text-base font-semibold text-gray-900">5 节点工作流</p>
             <p className="mt-2 text-sm text-gray-500">选题 → 脚本 → 分镜 → 视频 → 剪映 .draft 包导出。</p>
+          </Link>
+
+          <Link
+            href="/topics"
+            className="group rounded-xl border border-gray-200 bg-white p-6 shadow-sm transition-colors hover:border-indigo-300 hover:bg-indigo-50"
+          >
+            <p className="text-sm font-medium text-indigo-600">热门选题</p>
+            <p className="mt-1 text-base font-semibold text-gray-900">从 4 平台 trending 选起</p>
+            <p className="mt-2 text-sm text-gray-500">抖音 / 快手 / 小红书 / B站 当日热榜，直接「用这条」预填。</p>
           </Link>
 
           <Link

@@ -21,3 +21,9 @@ export type { NewrankAvroRecord, DecodeResult } from './avro-reader';
 export { decodeNewrankAvroBuffer } from './avro-reader';
 export type { NormalizedTrendingItem } from './normalize';
 export { normalizeTrendingRecord, normalizeTrendingRecords } from './normalize';
+export type { TrendingFetchResult } from './trending';
+export {
+  fetchTrendingItems,
+  defaultTrendingDate,
+  TRENDING_CACHE_TAG,
+} from './trending';

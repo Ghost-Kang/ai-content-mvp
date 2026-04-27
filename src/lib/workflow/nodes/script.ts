@@ -70,9 +70,15 @@ export class ScriptNodeRunner extends NodeRunner<ScriptInput, ScriptOutput> {
   };
 
   protected buildInput(ctx: NodeContext): ScriptInput {
-    // For W1, the script node is fed directly from the run's root topic.
-    // W4 will introduce a topic node whose output is { topic, productName, ... }.
-    return { topic: ctx.topic };
+    // W4-05: prefer the topic node's structured output when present, so
+    // a future LLM topic-analysis pass (W4-03) can surface refined
+    // `productName` / `targetAudience` here without touching this file.
+    // Fallback to `ctx.topic` keeps backward-compat with orchestrators
+    // that don't include the topic node (older probes, isolated tests,
+    // and the W1-era ScriptNodeRunner-only chain).
+    const upstream = ctx.upstreamOutputs.topic as { topic?: string } | undefined;
+    const topic = upstream?.topic ?? ctx.topic;
+    return { topic };
   }
 
   protected async execute(input: ScriptInput, ctx: NodeContext): Promise<NodeResult<ScriptOutput>> {
