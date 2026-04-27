@@ -11,6 +11,11 @@ function requireEnv(key: string): string {
 
 let _posthog: PostHog | null = null;
 
+function analyticsDisabled(): boolean {
+  const raw = (process.env.ANALYTICS_DISABLED ?? process.env.POSTHOG_DISABLED ?? '').trim().toLowerCase();
+  return raw === '1' || raw === 'true' || raw === 'yes';
+}
+
 function getPostHog(): PostHog {
   if (!_posthog) {
     _posthog = new PostHog(requireEnv('NEXT_PUBLIC_POSTHOG_KEY'), {
@@ -20,6 +25,23 @@ function getPostHog(): PostHog {
     });
   }
   return _posthog;
+}
+
+function captureEvent(
+  userId: string,
+  event: string,
+  properties: object,
+): void {
+  if (analyticsDisabled()) return;
+  try {
+    getPostHog().capture({
+      distinctId: userId,
+      event,
+      properties,
+    });
+  } catch (e) {
+    console.warn('[analytics] capture failed', { event, e });
+  }
 }
 
 interface BaseProperties {
@@ -36,11 +58,7 @@ export function fireSessionStarted(
     entryPoint: 'quick_create' | 'strategy_first';
   },
 ) {
-  getPostHog().capture({
-    distinctId: userId,
-    event: 'session_started',
-    properties: props,
-  });
+  captureEvent(userId, 'session_started', props);
 }
 
 // ENG-059
@@ -59,11 +77,7 @@ export function fireScriptGenerated(
     suppressionFlagCount: number;
   },
 ) {
-  getPostHog().capture({
-    distinctId: userId,
-    event: 'script_generated',
-    properties: props,
-  });
+  captureEvent(userId, 'script_generated', props);
 }
 
 // W3-08
@@ -77,11 +91,7 @@ export function fireScriptApproved(
     hadQualityIssue: boolean;
   },
 ) {
-  getPostHog().capture({
-    distinctId: userId,
-    event: 'script_approved',
-    properties: props,
-  });
+  captureEvent(userId, 'script_approved', props);
 }
 
 // W3-08
@@ -94,11 +104,7 @@ export function fireScriptExported(
     charCount: number;
   },
 ) {
-  getPostHog().capture({
-    distinctId: userId,
-    event: 'script_exported',
-    properties: props,
-  });
+  captureEvent(userId, 'script_exported', props);
 }
 
 // ─── v3.0 Workflow events (W1-09-V3) ─────────────────────────────────────────
@@ -121,11 +127,7 @@ export function fireWorkflowRunStarted(
   userId: string,
   props: V3Base & { topic: string },
 ) {
-  getPostHog().capture({
-    distinctId: userId,
-    event: 'workflow_run_started',
-    properties: props,
-  });
+  captureEvent(userId, 'workflow_run_started', props);
 }
 
 export function fireWorkflowRunCompleted(
@@ -137,11 +139,7 @@ export function fireWorkflowRunCompleted(
     nodeCount:       number;
   },
 ) {
-  getPostHog().capture({
-    distinctId: userId,
-    event: 'workflow_run_completed',
-    properties: props,
-  });
+  captureEvent(userId, 'workflow_run_completed', props);
 }
 
 export function fireWorkflowRunFailed(
@@ -155,11 +153,7 @@ export function fireWorkflowRunFailed(
     durationMs:      number;
   },
 ) {
-  getPostHog().capture({
-    distinctId: userId,
-    event: 'workflow_run_failed',
-    properties: props,
-  });
+  captureEvent(userId, 'workflow_run_failed', props);
 }
 
 export function fireWorkflowNodeCompleted(
@@ -174,11 +168,7 @@ export function fireWorkflowNodeCompleted(
     qualityIssue?: string | null;
   },
 ) {
-  getPostHog().capture({
-    distinctId: userId,
-    event: 'workflow_node_completed',
-    properties: props,
-  });
+  captureEvent(userId, 'workflow_node_completed', props);
 }
 
 export function fireWorkflowNodeFailed(
@@ -192,11 +182,7 @@ export function fireWorkflowNodeFailed(
     durationMs: number;
   },
 ) {
-  getPostHog().capture({
-    distinctId: userId,
-    event: 'workflow_node_failed',
-    properties: props,
-  });
+  captureEvent(userId, 'workflow_node_failed', props);
 }
 
 export function fireWorkflowNodeRetried(
@@ -210,11 +196,7 @@ export function fireWorkflowNodeRetried(
     backoffMs:  number;
   },
 ) {
-  getPostHog().capture({
-    distinctId: userId,
-    event: 'workflow_node_retried',
-    properties: props,
-  });
+  captureEvent(userId, 'workflow_node_retried', props);
 }
 
 export function fireMonthlyCapBlocked(
@@ -229,13 +211,10 @@ export function fireMonthlyCapBlocked(
     monthKey:      string;
   },
 ) {
-  getPostHog().capture({
-    distinctId: userId,
-    event: 'monthly_cap_blocked',
-    properties: props,
-  });
+  captureEvent(userId, 'monthly_cap_blocked', props);
 }
 
 export function shutdown() {
+  if (analyticsDisabled()) return Promise.resolve();
   return _posthog?.shutdown();
 }

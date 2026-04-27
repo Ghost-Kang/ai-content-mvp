@@ -19,10 +19,12 @@
 
 import { NextRequest } from 'next/server';
 import { verifySignatureAppRouter } from '@upstash/qstash/nextjs';
+import { Client } from '@upstash/qstash';
 import { eq, and, inArray, sql } from 'drizzle-orm';
 
 import { db, workflowRuns } from '@/db';
 import { buildFullOrchestrator } from '@/lib/workflow';
+import { VIDEO_CONTINUE_REQUIRED } from '@/lib/workflow/nodes/video';
 
 // Vercel runtime: the worker may run for the duration of a full 5-node
 // workflow. The MVP-1 budget is ~5 minutes (Pro tier max). If we
@@ -34,6 +36,31 @@ export const maxDuration = 300;
 
 interface WorkerBody {
   runId: string;
+}
+
+function resolveWorkerBaseUrlOrNull(): string | null {
+  const explicit = process.env.WORKFLOW_WORKER_BASE_URL;
+  if (explicit) return explicit.replace(/\/$/, '');
+  if (process.env.VERCEL_URL) return `https://${process.env.VERCEL_URL}`;
+  if (process.env.NEXT_PUBLIC_APP_URL) return process.env.NEXT_PUBLIC_APP_URL.replace(/\/$/, '');
+  return null;
+}
+
+async function enqueueContinuation(runId: string): Promise<string | null> {
+  const token = process.env.QSTASH_TOKEN;
+  const baseUrl = resolveWorkerBaseUrlOrNull();
+  if (!token || !baseUrl) return null;
+  const workerUrl = `${baseUrl}/api/workflow/run`;
+  const client = new Client({
+    token,
+    baseUrl: process.env.QSTASH_URL,
+  });
+  const res = await client.publishJSON({
+    url: workerUrl,
+    body: { runId },
+    retries: 3,
+  });
+  return (res as { messageId?: string }).messageId ?? null;
 }
 
 async function handler(req: NextRequest): Promise<Response> {
@@ -87,8 +114,51 @@ async function handler(req: NextRequest): Promise<Response> {
 
   // ─── Step 2: run orchestrator (catches its own internal failures) ──────────
   try {
+    // W2-07c guardrail: split video rendering across chained worker invocations
+    // unless explicitly overridden. This keeps each worker run inside Vercel's
+    // 300s cap for 17-frame storyboards.
+    if (!process.env.WORKFLOW_VIDEO_MAX_FRAMES_PER_INVOCATION) {
+      process.env.WORKFLOW_VIDEO_MAX_FRAMES_PER_INVOCATION = '2';
+    }
+
     const orchestrator = buildFullOrchestrator();
     const result = await orchestrator.run(runId);
+
+    // W2-07c (minimal): when video node requests continuation, chain the next
+    // worker invocation immediately so long 17-frame runs split across multiple
+    // 300s windows.
+    if (
+      result.status === 'failed'
+      && typeof result.errorMsg === 'string'
+      && result.errorMsg.includes(VIDEO_CONTINUE_REQUIRED)
+    ) {
+      try {
+        const messageId = await enqueueContinuation(runId);
+        return Response.json(
+          {
+            ok: true,
+            continued: true,
+            continuationMessageId: messageId,
+            result,
+          },
+          { status: 200 },
+        );
+      } catch (enqueueErr) {
+        console.error('[workflow.worker] continuation enqueue failed', { runId, enqueueErr });
+        // Keep 200 to prevent duplicate retries; run is safely in failed and can
+        // be redispatched manually.
+        return Response.json(
+          {
+            ok: false,
+            continuationEnqueueFailed: true,
+            message: enqueueErr instanceof Error ? enqueueErr.message : String(enqueueErr),
+            result,
+          },
+          { status: 200 },
+        );
+      }
+    }
+
     return Response.json({ ok: true, result }, { status: 200 });
   } catch (err) {
     // Orchestrator should write `failed` status itself, but in case

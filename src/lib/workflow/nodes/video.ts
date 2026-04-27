@@ -24,6 +24,8 @@
 
 import { NodeRunner } from '../node-runner';
 import { assertCapAllows, SpendCapError } from '../spend-cap';
+import { db, workflowSteps } from '@/db';
+import { and, eq } from 'drizzle-orm';
 import {
   NodeError,
   type NodeContext,
@@ -86,6 +88,19 @@ const POLL_INTERVAL_MS = Number(process.env.WORKFLOW_VIDEO_POLL_INTERVAL_MS ?? 2
 const POLL_MAX_WAIT_MS = Number(process.env.WORKFLOW_VIDEO_POLL_MAX_WAIT_MS ?? 300_000); // 5 min
 
 /**
+ * Hard timeout guard for serverless workers: render at most N frames per
+ * invocation, persist checkpoint, then ask worker to redispatch.
+ *
+ * Default 2 keeps single invocation well below 300s for typical ~15-25s/frame.
+ */
+function framesPerInvocation(): number | null {
+  const raw = process.env.WORKFLOW_VIDEO_MAX_FRAMES_PER_INVOCATION;
+  if (!raw) return null;
+  const n = Number(raw);
+  return Number.isFinite(n) && n > 0 ? Math.floor(n) : null;
+}
+
+/**
  * Demo / cost guard: cap how many frames a single run will render. Default
  * unset = render every storyboard frame. For W2-05 dev demos we set this to
  * 3 via env so a stuck retry loop doesn't burn ¥100. Production internal-test
@@ -103,6 +118,18 @@ function maxFramesPerRun(): number | null {
 // 47% margin, hits §3 target. Override per tenant via env if quality demands.
 const DEFAULT_RESOLUTION: VideoResolution =
   (process.env.WORKFLOW_VIDEO_RESOLUTION as VideoResolution) || '480p';
+
+const VIDEO_CONTINUE_REQUIRED = 'VIDEO_CONTINUE_REQUIRED';
+
+interface VideoCheckpoint {
+  frames: VideoFrameOutput[];
+  totalCostFen: number;
+  totalDurationSec: number;
+  provider: string;
+  model: string;
+  resolution: VideoResolution;
+  incomplete: true;
+}
 
 // ─── Runner ───────────────────────────────────────────────────────────────────
 
@@ -155,10 +182,16 @@ export class VideoGenNodeRunner extends NodeRunner<VideoFrameInput[], VideoNodeO
       throw new NodeError('INVALID_INPUT', 'video node received zero frames', false);
     }
 
-    const rendered: VideoFrameOutput[] = [];
-    let runningCostFen = 0;
+    const checkpoint = await this.loadCheckpoint(ctx.runId);
+    const rendered: VideoFrameOutput[] = [...checkpoint.frames];
+    const renderedByIndex = new Set(rendered.map((f) => f.index));
+    let runningCostFen = checkpoint.totalCostFen;
 
-    for (const frame of frames) {
+    const pendingFrames = frames.filter((f) => !renderedByIndex.has(f.index));
+    const chunk = framesPerInvocation();
+    const targetFrames = chunk === null ? pendingFrames : pendingFrames.slice(0, Math.max(1, chunk));
+
+    for (const frame of targetFrames) {
       const estimatedTokens     = this.provider.estimateTokensForFrame(frame.durationSec, DEFAULT_RESOLUTION);
       const estimatedFrameCostFen = Math.ceil((estimatedTokens * this.provider.costPerMTokensFen) / 1_000_000);
 
@@ -186,9 +219,18 @@ export class VideoGenNodeRunner extends NodeRunner<VideoFrameInput[], VideoNodeO
       const outcome = await this.renderOneFrameWithRetry(frame, ctx);
       rendered.push(outcome);
       runningCostFen += outcome.costFen;
+      await this.writeCheckpoint(ctx.runId, rendered, runningCostFen);
     }
 
     const totalDurationSec = rendered.reduce((s, f) => s + f.actualDurationSec, 0);
+
+    if (rendered.length < frames.length) {
+      throw new NodeError(
+        'PROVIDER_FAILED',
+        `${VIDEO_CONTINUE_REQUIRED}: rendered ${rendered.length}/${frames.length} frames in this invocation; enqueue next worker run`,
+        false,
+      );
+    }
 
     const output: VideoNodeOutput = {
       frames:           rendered,
@@ -212,6 +254,101 @@ export class VideoGenNodeRunner extends NodeRunner<VideoFrameInput[], VideoNodeO
         framesWithRetry:    rendered.filter((f) => f.attemptCount > 1).length,
       },
     };
+  }
+
+  private async loadCheckpoint(runId: string): Promise<VideoCheckpoint> {
+    const rows = await db
+      .select({
+        outputJson: workflowSteps.outputJson,
+      })
+      .from(workflowSteps)
+      .where(
+        and(
+          eq(workflowSteps.runId, runId),
+          eq(workflowSteps.nodeType, 'video'),
+        ),
+      )
+      .limit(1);
+
+    const raw = rows[0]?.outputJson as Record<string, unknown> | null | undefined;
+    if (!raw || typeof raw !== 'object') {
+      return {
+        frames: [],
+        totalCostFen: 0,
+        totalDurationSec: 0,
+        provider: this.provider.name,
+        model: this.provider.model,
+        resolution: DEFAULT_RESOLUTION,
+        incomplete: true,
+      };
+    }
+
+    const maybeFrames = raw.frames;
+    const maybeCost = raw.totalCostFen;
+    if (!Array.isArray(maybeFrames) || typeof maybeCost !== 'number') {
+      return {
+        frames: [],
+        totalCostFen: 0,
+        totalDurationSec: 0,
+        provider: this.provider.name,
+        model: this.provider.model,
+        resolution: DEFAULT_RESOLUTION,
+        incomplete: true,
+      };
+    }
+
+    const frames = maybeFrames.filter((f): f is VideoFrameOutput => {
+      if (!f || typeof f !== 'object') return false;
+      const v = f as Partial<VideoFrameOutput>;
+      return (
+        typeof v.index === 'number'
+        && typeof v.jobId === 'string'
+        && typeof v.videoUrl === 'string'
+        && typeof v.provider === 'string'
+        && typeof v.model === 'string'
+        && typeof v.costFen === 'number'
+        && typeof v.actualDurationSec === 'number'
+        && typeof v.attemptCount === 'number'
+      );
+    });
+
+    return {
+      frames,
+      totalCostFen: Number(maybeCost) || 0,
+      totalDurationSec: frames.reduce((s, f) => s + f.actualDurationSec, 0),
+      provider: this.provider.name,
+      model: this.provider.model,
+      resolution: DEFAULT_RESOLUTION,
+      incomplete: true,
+    };
+  }
+
+  private async writeCheckpoint(
+    runId: string,
+    rendered: VideoFrameOutput[],
+    totalCostFen: number,
+  ): Promise<void> {
+    const checkpoint: VideoCheckpoint = {
+      frames: rendered,
+      totalCostFen,
+      totalDurationSec: rendered.reduce((s, f) => s + f.actualDurationSec, 0),
+      provider: this.provider.name,
+      model: this.provider.model,
+      resolution: DEFAULT_RESOLUTION,
+      incomplete: true,
+    };
+    await db
+      .update(workflowSteps)
+      .set({
+        outputJson: checkpoint as object,
+        costFen: totalCostFen,
+      })
+      .where(
+        and(
+          eq(workflowSteps.runId, runId),
+          eq(workflowSteps.nodeType, 'video'),
+        ),
+      );
   }
 
   // ─── Per-frame loop ─────────────────────────────────────────────────────────
@@ -373,3 +510,5 @@ function backoffMs(attempt: number): number {
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
+
+export { VIDEO_CONTINUE_REQUIRED };
