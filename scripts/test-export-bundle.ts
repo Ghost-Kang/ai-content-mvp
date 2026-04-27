@@ -98,11 +98,30 @@ async function case1Happy() {
 
   // Inspect the zip
   const z = await JSZip.loadAsync(result.bytes);
-  for (const name of ['script.txt', 'project.fcpxml', 'README.md']) {
+  for (const name of [
+    'script.txt',
+    'project.fcpxml',
+    'README.md',
+    'subtitles/disclosure.srt',
+    'subtitles/narration.srt',
+  ]) {
     expect(z.file(name) !== null,                            `zip contains ${name}`);
   }
   for (const c of result.clipFilenames) {
     expect(z.file(`clips/${c}`) !== null,                    `zip contains clips/${c}`);
+  }
+
+  // SRT shape — 剪映 import 兜底字幕路径，必须真生成且语义对得上
+  const disclosureSrt = await z.file('subtitles/disclosure.srt')!.async('string');
+  const narrationSrt  = await z.file('subtitles/narration.srt')!.async('string');
+  expect(disclosureSrt.includes('本视频由 AI 辅助生成'),       'disclosure SRT contains compliance text');
+  expect(/^\d+\s*\n\d{2}:\d{2}:\d{2},\d{3}\s*-->/m.test(disclosureSrt), 'disclosure SRT timestamps well-formed');
+  expect(/^1\s*\n00:00:00,000\s*-->/m.test(disclosureSrt),    'disclosure SRT starts at 00:00:00,000');
+  // 3 frames @ baseInput() → 3 narration cues w/ accumulated timestamps
+  const narrationCueCount = (narrationSrt.match(/^\d+\s*\n\d{2}:\d{2}:\d{2},\d{3}\s*-->/gm) ?? []).length;
+  expect(narrationCueCount === 3,                            `narration SRT has 3 cues (got ${narrationCueCount})`);
+  for (const f of input.frames) {
+    expect(narrationSrt.includes(f.voiceover),               `narration SRT includes frame ${f.index} voiceover`);
   }
 
   // Path rewrite check — FCPXML <media-rep src="...">, not JianYing JSON draft
@@ -119,6 +138,9 @@ async function case1Happy() {
   expect(readme.includes(input.topic),                        'README mentions topic');
   expect(readme.includes('3'),                                'README mentions frame count');
   expect(readme.includes('AI 生成'),                           'README has compliance reminder');
+  expect(readme.includes('subtitles/disclosure.srt'),         'README references disclosure SRT');
+  expect(readme.includes('subtitles/narration.srt'),          'README references narration SRT');
+  expect(readme.includes('无音轨'),                            'README warns about missing audio track');
 }
 
 async function case2AllowPartial() {

@@ -21,6 +21,7 @@ export {
   type IdMaker,
 } from './fcpxml';
 export { buildExportReadme, buildExportReadmeFromInput } from './readme';
+export { buildDisclosureSrt, buildNarrationSrt, srtTimestamp } from './srt';
 export {
   buildExportBundle,
   BundleError,

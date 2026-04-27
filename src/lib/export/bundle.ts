@@ -35,6 +35,7 @@ import {
   type ExportInput,
 } from './';
 import { buildExportReadmeFromInput } from './readme';
+import { buildDisclosureSrt, buildNarrationSrt } from './srt';
 
 // ─── Public types ─────────────────────────────────────────────────────────────
 
@@ -175,9 +176,11 @@ function rewriteFcpxmlPaths(
 
 // ─── Public builder ───────────────────────────────────────────────────────────
 
-const SCRIPT_TEXT_NAME = 'script.txt';
-const FCPXML_NAME      = 'project.fcpxml';
-const README_NAME      = 'README.md';
+const SCRIPT_TEXT_NAME      = 'script.txt';
+const FCPXML_NAME           = 'project.fcpxml';
+const README_NAME           = 'README.md';
+const DISCLOSURE_SRT_NAME   = 'subtitles/disclosure.srt';
+const NARRATION_SRT_NAME    = 'subtitles/narration.srt';
 
 export async function buildExportBundle(
   input:   ExportInput,
@@ -231,24 +234,42 @@ export async function buildExportBundle(
   // 3. Rewrite fcpxml paths so NLEs find the local clips we just packed.
   const rewrittenFcpxml = rewriteFcpxmlPaths(fcpxmlArt.fcpxml, fcpxmlArt.downloadHints);
 
-  // 4. Generate the README using the actual clip filenames included.
+  // 4. Build SRT subtitle files. 剪映 import 静默丢弃 FCPXML 里的
+  //    Apple `.moti` title effect（现场实测：合规字幕 / 旁白 都不出），
+  //    所以我们另外出 SRT —— 剪映「文件 → 导入 → 字幕」直接读，无依赖。
+  //    disclosure.srt 是 W3-03 / 互联网深度合成 第十七条 强制合规；
+  //    narration.srt 是用户配音 / TTS 蓝本。
+  const totalDurationSec = input.frames.reduce((s, f) => s + f.durationSec, 0);
+  const disclosureSrt    = buildDisclosureSrt(
+    totalDurationSec,
+    input.aiDisclosureLabel?.text,
+  );
+  const narrationSrt     = buildNarrationSrt(input.frames);
+
+  // 5. Generate the README using the actual clip filenames included.
   const readme = buildExportReadmeFromInput({
     input,
-    generatedAt:    now,
-    scriptTextName: SCRIPT_TEXT_NAME,
-    fcpxmlName:     FCPXML_NAME,
+    generatedAt:        now,
+    scriptTextName:     SCRIPT_TEXT_NAME,
+    fcpxmlName:         FCPXML_NAME,
     clipFilenames,
+    disclosureSrtName:  DISCLOSURE_SRT_NAME,
+    narrationSrtName:   NARRATION_SRT_NAME,
   });
 
-  // 5. Assemble the zip.
+  // 6. Assemble the zip.
   const zip = new JSZip();
-  zip.file(SCRIPT_TEXT_NAME, scriptText);
-  zip.file(FCPXML_NAME,      rewrittenFcpxml);
-  zip.file(README_NAME,      readme);
+  zip.file(SCRIPT_TEXT_NAME,    scriptText);
+  zip.file(FCPXML_NAME,         rewrittenFcpxml);
+  zip.file(README_NAME,         readme);
+  zip.file(DISCLOSURE_SRT_NAME, disclosureSrt);
+  zip.file(NARRATION_SRT_NAME,  narrationSrt);
   uncompressed +=
       Buffer.byteLength(scriptText, 'utf8')
     + Buffer.byteLength(rewrittenFcpxml, 'utf8')
-    + Buffer.byteLength(readme, 'utf8');
+    + Buffer.byteLength(readme, 'utf8')
+    + Buffer.byteLength(disclosureSrt, 'utf8')
+    + Buffer.byteLength(narrationSrt, 'utf8');
 
   const clipsFolder = zip.folder('clips');
   if (!clipsFolder) {
