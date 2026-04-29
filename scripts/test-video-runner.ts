@@ -437,8 +437,12 @@ async function caseContinuationCheckpointResume() {
       expect(thrown1.message.includes(VIDEO_CONTINUE_REQUIRED), 'invoke 1 error includes VIDEO_CONTINUE_REQUIRED');
     }
     const [step1] = await db.select().from(workflowSteps).where(eq(workflowSteps.runId, f.runId));
-    const frames1 = ((step1?.outputJson as { frames?: unknown[] } | null)?.frames ?? []).length;
+    const output1 = step1?.outputJson as { frames?: unknown[]; progress?: { phase?: string; completedFrames?: number; totalFrames?: number } } | null;
+    const frames1 = (output1?.frames ?? []).length;
     expect(frames1 === 2, `invoke 1 checkpoint stores 2 frames (got ${frames1})`);
+    expect(output1?.progress?.phase === 'continuing', `invoke 1 progress.phase=continuing (got ${output1?.progress?.phase})`);
+    expect(output1?.progress?.completedFrames === 2, `invoke 1 progress completed=2 (got ${output1?.progress?.completedFrames})`);
+    expect(output1?.progress?.totalFrames === 5, `invoke 1 progress total=5 (got ${output1?.progress?.totalFrames})`);
     // No-flicker contract: row stays `pending` between invocations so SSE
     // never pushes a misleading `failed` to the browser.
     expect(step1?.status === 'pending',  `invoke 1 step.status='pending' for SSE (got ${step1?.status})`);
@@ -452,8 +456,12 @@ async function caseContinuationCheckpointResume() {
       expect(thrown2.message.includes(VIDEO_CONTINUE_REQUIRED), 'invoke 2 error includes VIDEO_CONTINUE_REQUIRED');
     }
     const [step2] = await db.select().from(workflowSteps).where(eq(workflowSteps.runId, f.runId));
-    const frames2 = ((step2?.outputJson as { frames?: unknown[] } | null)?.frames ?? []).length;
+    const output2 = step2?.outputJson as { frames?: unknown[]; progress?: { phase?: string; completedFrames?: number; totalFrames?: number } } | null;
+    const frames2 = (output2?.frames ?? []).length;
     expect(frames2 === 4, `invoke 2 checkpoint stores 4 frames (got ${frames2})`);
+    expect(output2?.progress?.phase === 'continuing', `invoke 2 progress.phase=continuing (got ${output2?.progress?.phase})`);
+    expect(output2?.progress?.completedFrames === 4, `invoke 2 progress completed=4 (got ${output2?.progress?.completedFrames})`);
+    expect(output2?.progress?.totalFrames === 5, `invoke 2 progress total=5 (got ${output2?.progress?.totalFrames})`);
     expect(step2?.status === 'pending',  `invoke 2 step.status='pending' for SSE (got ${step2?.status})`);
     expect(step2?.errorMsg === null,     `invoke 2 step.errorMsg cleared (got ${JSON.stringify(step2?.errorMsg)})`);
     expect(step2?.completedAt === null,  `invoke 2 step.completedAt cleared (got ${JSON.stringify(step2?.completedAt)})`);
@@ -465,9 +473,11 @@ async function caseContinuationCheckpointResume() {
     expect(provider.pollCalls.length === 5, `provider.poll called exactly 5 times total (got ${provider.pollCalls.length})`);
 
     const [step3] = await db.select().from(workflowSteps).where(eq(workflowSteps.runId, f.runId));
-    const frames3 = ((step3?.outputJson as { frames?: unknown[] } | null)?.frames ?? []).length;
+    const output3 = step3?.outputJson as { frames?: unknown[]; progress?: unknown } | null;
+    const frames3 = (output3?.frames ?? []).length;
     expect(step3?.status === 'done', `final step status=done (got ${step3?.status})`);
     expect(frames3 === 5, `final persisted output keeps 5 frames (got ${frames3})`);
+    expect(output3?.progress === undefined, 'final done output does not keep transient progress metadata');
   } finally {
     if (prevChunk === undefined) {
       delete process.env.WORKFLOW_VIDEO_MAX_FRAMES_PER_INVOCATION;

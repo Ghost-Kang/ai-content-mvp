@@ -11,7 +11,7 @@
 
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { StepStatusBadge } from './StatusBadge';
 import { BundleDownload } from './BundleDownload';
 import { NodeActionBar } from './NodeActionBar';
@@ -66,6 +66,173 @@ function safeGet<T = unknown>(obj: unknown, path: string): T | undefined {
     }
   }
   return cur as T;
+}
+
+interface NodeProgressView {
+  percent: number;
+  title: string;
+  detail: string;
+  etaText?: string;
+  stalled?: boolean;
+}
+
+interface VideoProgressPayload {
+  phase?: 'rendering' | 'checkpointed' | 'continuing';
+  totalFrames?: number;
+  completedFrames?: number;
+  activeFrameIndexes?: number[];
+  concurrency?: number;
+  batchNumber?: number;
+  totalBatches?: number;
+  startedAt?: string;
+  updatedAt?: string;
+}
+
+function useNow(enabled: boolean): number {
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    if (!enabled) return;
+    const id = window.setInterval(() => setNow(Date.now()), 1_000);
+    return () => window.clearInterval(id);
+  }, [enabled]);
+  return now;
+}
+
+function parseTs(v: string | Date | null | undefined): number | null {
+  if (!v) return null;
+  const ms = (typeof v === 'string' ? new Date(v) : v).getTime();
+  return Number.isFinite(ms) ? ms : null;
+}
+
+function formatDuration(ms: number): string {
+  const sec = Math.max(0, Math.round(ms / 1_000));
+  if (sec < 60) return `${sec} 秒`;
+  const min = Math.floor(sec / 60);
+  const rest = sec % 60;
+  if (min < 60) return rest === 0 ? `${min} 分钟` : `${min} 分 ${rest} 秒`;
+  const h = Math.floor(min / 60);
+  return `${h} 小时 ${min % 60} 分钟`;
+}
+
+function clampPct(n: number): number {
+  if (!Number.isFinite(n)) return 0;
+  return Math.max(0, Math.min(100, Math.round(n)));
+}
+
+const GENERIC_NODE_ESTIMATE_MS: Record<Exclude<NodeType, 'topic' | 'video'>, number> = {
+  script: 35_000,
+  storyboard: 45_000,
+  export: 25_000,
+};
+
+function buildGenericProgress(nodeType: NodeType, step: NodeCardStep, now: number): NodeProgressView {
+  if (step.status === 'done' || step.status === 'skipped') {
+    return { percent: 100, title: '100% 已完成', detail: '该节点已完成。' };
+  }
+  if (step.status === 'pending' || step.status === 'dirty') {
+    return { percent: 0, title: '0% 待执行', detail: '等待上游节点完成。' };
+  }
+  if (step.status === 'failed') {
+    return { percent: 0, title: '执行失败', detail: step.errorMsg ?? '该节点执行失败。', stalled: true };
+  }
+
+  const estimate = nodeType === 'topic' || nodeType === 'video'
+    ? 30_000
+    : GENERIC_NODE_ESTIMATE_MS[nodeType];
+  const startedAt = parseTs(step.startedAt) ?? now;
+  const elapsed = Math.max(0, now - startedAt);
+  const percent = clampPct(Math.min(95, (elapsed / estimate) * 88 + 5));
+  const remain = Math.max(0, estimate - elapsed);
+  const stalled = elapsed > estimate * 2.5;
+  return {
+    percent,
+    title: `${percent}% 运行中`,
+    detail: stalled
+      ? `已运行 ${formatDuration(elapsed)}，比平时更久；可能卡在模型请求或服务商响应。`
+      : `正在执行，已运行 ${formatDuration(elapsed)}。`,
+    etaText: stalled ? undefined : `预计剩余约 ${formatDuration(remain)}`,
+    stalled,
+  };
+}
+
+function buildVideoProgress(step: NodeCardStep, now: number): NodeProgressView {
+  const raw = safeGet<VideoProgressPayload>(step.outputJson, 'progress');
+  const frames = safeGet<ReadonlyArray<unknown>>(step.outputJson, 'frames') ?? [];
+  const completedFrames = raw?.completedFrames ?? frames.length;
+  const totalFrames = raw?.totalFrames ?? Math.max(completedFrames, frames.length, 1);
+  const concurrency = Math.max(1, raw?.concurrency ?? 1);
+  const activeFrameIndexes = Array.isArray(raw?.activeFrameIndexes) ? raw.activeFrameIndexes : [];
+  const phase = raw?.phase;
+  const lastProgressAt = parseTs(raw?.updatedAt) ?? parseTs(step.startedAt) ?? now;
+  const elapsedSinceProgress = Math.max(0, now - lastProgressAt);
+
+  if (step.status === 'done') {
+    return { percent: 100, title: '100% 已完成', detail: `已完成 ${totalFrames}/${totalFrames} 段视频。` };
+  }
+
+  const basePct = (completedFrames / totalFrames) * 100;
+  const activePct = activeFrameIndexes.length > 0
+    ? Math.min((activeFrameIndexes.length / totalFrames) * 85, (activeFrameIndexes.length / totalFrames) * (elapsedSinceProgress / 45_000) * 90)
+    : 0;
+  const percent = clampPct(Math.min(99, basePct + activePct));
+
+  const remainingFrames = Math.max(0, totalFrames - completedFrames);
+  const remainingBatches = Math.ceil(remainingFrames / concurrency);
+  const batchEtaMs = 35_000;
+  const currentBatchCredit = phase === 'rendering' ? Math.min(elapsedSinceProgress, batchEtaMs) : 0;
+  const etaMs = Math.max(0, remainingBatches * batchEtaMs - currentBatchCredit);
+  const stalled = phase === 'rendering' && elapsedSinceProgress > 90_000;
+
+  if (phase === 'continuing' || (step.status === 'pending' && completedFrames > 0 && completedFrames < totalFrames)) {
+    return {
+      percent,
+      title: `${percent}% 等待下一批`,
+      detail: `已完成 ${completedFrames}/${totalFrames} 段；正在等待 worker 接力继续渲染。`,
+      etaText: `预计剩余约 ${formatDuration(etaMs)}`,
+    };
+  }
+
+  if (activeFrameIndexes.length > 0) {
+    const activeText = activeFrameIndexes.map((n) => `第 ${n} 段`).join('、');
+    return {
+      percent,
+      title: `${percent}% 视频生成中`,
+      detail: stalled
+        ? `${activeText} 已等待 ${formatDuration(elapsedSinceProgress)}；当前卡在 Seedance 生成/轮询结果。`
+        : `正在并发生成 ${activeText}，已完成 ${completedFrames}/${totalFrames} 段。`,
+      etaText: stalled ? '如果继续超过 3 分钟，通常是服务商任务排队或回调变慢' : `预计剩余约 ${formatDuration(etaMs)}`,
+      stalled,
+    };
+  }
+
+  return {
+    percent,
+    title: `${percent}% 视频生成中`,
+    detail: `已完成 ${completedFrames}/${totalFrames} 段，正在准备下一批。`,
+    etaText: `预计剩余约 ${formatDuration(etaMs)}`,
+  };
+}
+
+function ProgressBlock({ info }: { info: NodeProgressView }) {
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center justify-between gap-2 text-xs">
+        <span className={info.stalled ? 'font-semibold text-rose-700' : 'font-semibold text-amber-700'}>
+          {info.title}
+        </span>
+        {info.etaText && <span className="text-gray-500">{info.etaText}</span>}
+      </div>
+      <div className="h-1.5 w-full overflow-hidden rounded-full bg-gray-100">
+        <div
+          className={`h-full transition-all duration-500 ${info.stalled ? 'bg-rose-500' : 'bg-amber-500'}`}
+          style={{ width: `${Math.max(2, info.percent)}%` }}
+        />
+      </div>
+      <p className={`text-xs leading-relaxed ${info.stalled ? 'text-rose-600' : 'text-gray-600'}`}>
+        {info.detail}
+      </p>
+    </div>
+  );
 }
 
 function TopicSummary({ topic }: { topic: string }) {
@@ -232,6 +399,17 @@ export function NodeCard({
 
   const hasOutput = !isTopic && step && step.outputJson !== null && Object.keys((step.outputJson as object) ?? {}).length > 0;
   const canExpand = hasOutput || (!!step?.errorMsg);
+  const hasVideoProgress = nodeType === 'video' && !!safeGet<VideoProgressPayload>(step?.outputJson, 'progress');
+  const shouldTick = !!step && (status === 'running' || (status === 'pending' && hasVideoProgress));
+  const now = useNow(shouldTick);
+  const progressInfo = useMemo(() => {
+    if (!step || isTopic) return null;
+    if (nodeType === 'video' && (status === 'running' || hasVideoProgress)) {
+      return buildVideoProgress(step, now);
+    }
+    if (status === 'running') return buildGenericProgress(nodeType, step, now);
+    return null;
+  }, [hasVideoProgress, isTopic, nodeType, now, status, step]);
 
   return (
     <article
@@ -259,13 +437,21 @@ export function NodeCard({
         {isTopic && <TopicSummary topic={topic} />}
 
         {!isTopic && status === 'pending' && (
-          <p className="text-xs text-gray-400">等待上游节点完成…</p>
+          progressInfo ? (
+            <ProgressBlock info={progressInfo} />
+          ) : (
+            <p className="text-xs text-gray-400">等待上游节点完成…</p>
+          )
         )}
 
         {!isTopic && status === 'running' && (
-          <p className="text-xs text-amber-700">
-            正在执行 (重试 {step?.retryCount ?? 0} 次)…
-          </p>
+          progressInfo ? (
+            <ProgressBlock info={progressInfo} />
+          ) : (
+            <p className="text-xs text-amber-700">
+              正在执行 (重试 {step?.retryCount ?? 0} 次)…
+            </p>
+          )
         )}
 
         {!isTopic && status === 'failed' && step && (

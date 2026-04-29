@@ -148,7 +148,20 @@ interface VideoCheckpoint {
   provider: string;
   model: string;
   resolution: VideoResolution;
+  progress?: VideoProgress;
   incomplete: true;
+}
+
+interface VideoProgress {
+  phase: 'rendering' | 'checkpointed' | 'continuing';
+  totalFrames: number;
+  completedFrames: number;
+  activeFrameIndexes: number[];
+  concurrency: number;
+  batchNumber: number;
+  totalBatches: number;
+  startedAt: string;
+  updatedAt: string;
 }
 
 // ─── Runner ───────────────────────────────────────────────────────────────────
@@ -206,12 +219,14 @@ export class VideoGenNodeRunner extends NodeRunner<VideoFrameInput[], VideoNodeO
     const rendered: VideoFrameOutput[] = [...checkpoint.frames];
     const renderedByIndex = new Set(rendered.map((f) => f.index));
     let runningCostFen = checkpoint.totalCostFen;
+    const progressStartedAt = checkpoint.progress?.startedAt ?? new Date().toISOString();
 
     const pendingFrames = frames.filter((f) => !renderedByIndex.has(f.index));
     const chunk = framesPerInvocation();
     const targetFrames = chunk === null ? pendingFrames : pendingFrames.slice(0, Math.max(1, chunk));
 
     const concurrency = framesConcurrency();
+    const totalBatches = Math.max(1, Math.ceil(targetFrames.length / concurrency));
 
     // Walk the per-invocation chunk in concurrency-sized batches. Each batch:
     //   1. summed cap preflight (avoid the "N concurrent submits each pass
@@ -225,6 +240,7 @@ export class VideoGenNodeRunner extends NodeRunner<VideoFrameInput[], VideoNodeO
     // tests rely on.
     for (let i = 0; i < targetFrames.length; i += concurrency) {
       const batch = targetFrames.slice(i, i + concurrency);
+      const batchNumber = Math.floor(i / concurrency) + 1;
 
       const estimatedBatchCostFen = batch.reduce((sum, f) => {
         const t = this.provider.estimateTokensForFrame(f.durationSec, DEFAULT_RESOLUTION);
@@ -254,6 +270,18 @@ export class VideoGenNodeRunner extends NodeRunner<VideoFrameInput[], VideoNodeO
         throw e;
       }
 
+      await this.writeCheckpoint(ctx.runId, rendered, runningCostFen, {
+        phase: 'rendering',
+        totalFrames: frames.length,
+        completedFrames: rendered.length,
+        activeFrameIndexes: batch.map((f) => f.index),
+        concurrency,
+        batchNumber,
+        totalBatches,
+        startedAt: progressStartedAt,
+        updatedAt: new Date().toISOString(),
+      });
+
       // Fan out — Promise.all rejects on the first per-frame NodeError; any
       // sibling renders that have already returned successfully will have
       // updated `rendered` via the post-await sort/append below — but only
@@ -273,12 +301,33 @@ export class VideoGenNodeRunner extends NodeRunner<VideoFrameInput[], VideoNodeO
       // order, but rendered also contains hydrated checkpoint frames from
       // earlier invocations, so sort once for downstream join sanity.
       rendered.sort((a, b) => a.index - b.index);
-      await this.writeCheckpoint(ctx.runId, rendered, runningCostFen);
+      await this.writeCheckpoint(ctx.runId, rendered, runningCostFen, {
+        phase: 'checkpointed',
+        totalFrames: frames.length,
+        completedFrames: rendered.length,
+        activeFrameIndexes: [],
+        concurrency,
+        batchNumber,
+        totalBatches,
+        startedAt: progressStartedAt,
+        updatedAt: new Date().toISOString(),
+      });
     }
 
     const totalDurationSec = rendered.reduce((s, f) => s + f.actualDurationSec, 0);
 
     if (rendered.length < frames.length) {
+      await this.writeCheckpoint(ctx.runId, rendered, runningCostFen, {
+        phase: 'continuing',
+        totalFrames: frames.length,
+        completedFrames: rendered.length,
+        activeFrameIndexes: [],
+        concurrency,
+        batchNumber: totalBatches,
+        totalBatches,
+        startedAt: progressStartedAt,
+        updatedAt: new Date().toISOString(),
+      });
       throw new NodeError(
         'PROVIDER_FAILED',
         `${VIDEO_CONTINUE_REQUIRED}: rendered ${rendered.length}/${frames.length} frames in this invocation; enqueue next worker run`,
@@ -339,6 +388,7 @@ export class VideoGenNodeRunner extends NodeRunner<VideoFrameInput[], VideoNodeO
 
     const maybeFrames = raw.frames;
     const maybeCost = raw.totalCostFen;
+    const maybeProgress = parseVideoProgress(raw.progress);
     if (!Array.isArray(maybeFrames) || typeof maybeCost !== 'number') {
       return {
         frames: [],
@@ -373,6 +423,7 @@ export class VideoGenNodeRunner extends NodeRunner<VideoFrameInput[], VideoNodeO
       provider: this.provider.name,
       model: this.provider.model,
       resolution: DEFAULT_RESOLUTION,
+      ...(maybeProgress ? { progress: maybeProgress } : {}),
       incomplete: true,
     };
   }
@@ -381,6 +432,7 @@ export class VideoGenNodeRunner extends NodeRunner<VideoFrameInput[], VideoNodeO
     runId: string,
     rendered: VideoFrameOutput[],
     totalCostFen: number,
+    progress?: VideoProgress,
   ): Promise<void> {
     const checkpoint: VideoCheckpoint = {
       frames: rendered,
@@ -389,6 +441,7 @@ export class VideoGenNodeRunner extends NodeRunner<VideoFrameInput[], VideoNodeO
       provider: this.provider.name,
       model: this.provider.model,
       resolution: DEFAULT_RESOLUTION,
+      ...(progress ? { progress } : {}),
       incomplete: true,
     };
     await db
@@ -563,6 +616,38 @@ function backoffMs(attempt: number): number {
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function parseVideoProgress(raw: unknown): VideoProgress | undefined {
+  if (!raw || typeof raw !== 'object') return undefined;
+  const p = raw as Partial<VideoProgress>;
+  const phaseOk = p.phase === 'rendering' || p.phase === 'checkpointed' || p.phase === 'continuing';
+  if (
+    !phaseOk
+    || typeof p.totalFrames !== 'number'
+    || typeof p.completedFrames !== 'number'
+    || !Array.isArray(p.activeFrameIndexes)
+    || typeof p.concurrency !== 'number'
+    || typeof p.batchNumber !== 'number'
+    || typeof p.totalBatches !== 'number'
+    || typeof p.startedAt !== 'string'
+    || typeof p.updatedAt !== 'string'
+  ) {
+    return undefined;
+  }
+  const phase = p.phase as VideoProgress['phase'];
+
+  return {
+    phase,
+    totalFrames: p.totalFrames,
+    completedFrames: p.completedFrames,
+    activeFrameIndexes: p.activeFrameIndexes.filter((n): n is number => typeof n === 'number'),
+    concurrency: p.concurrency,
+    batchNumber: p.batchNumber,
+    totalBatches: p.totalBatches,
+    startedAt: p.startedAt,
+    updatedAt: p.updatedAt,
+  };
 }
 
 export { VIDEO_CONTINUE_REQUIRED };
