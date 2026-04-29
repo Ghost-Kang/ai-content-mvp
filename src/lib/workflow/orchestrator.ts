@@ -18,6 +18,7 @@ import type {
   WorkflowStatus,
 } from './types';
 import { NodeError } from './types';
+import { isContinuationMarker } from './continuation';
 import { checkMonthlyCap, SpendCapError } from './spend-cap';
 import {
   fireWorkflowRunStarted,
@@ -199,6 +200,42 @@ export class WorkflowOrchestrator {
           : isCap
             ? new NodeError('SPEND_CAP_EXCEEDED', (e as SpendCapError).message, false, e)
             : new NodeError('UNKNOWN', e instanceof Error ? e.message : String(e), false, e);
+
+        // Continuation marker (video chunk hand-off) is NOT a real failure.
+        // Write `pending` so SSE never pushes red `failed` to the browser
+        // between chained worker invocations. We still return a non-`done`
+        // result containing the marker so the worker route can detect it
+        // and enqueue the next QStash message.
+        if (isContinuationMarker(ne)) {
+          await db
+            .update(workflowRuns)
+            .set({
+              status:       'pending' as WorkflowStatus,
+              errorMsg:     null,
+              totalCostFen,
+              totalVideoCount,
+              completedAt:  null,
+            })
+            .where(eq(workflowRuns.id, runId));
+
+          // Skip monthly_usage bump + analytics fire — neither apply to a
+          // mid-flight checkpoint. The truly-final invocation will bump
+          // and fire on success path below.
+          return {
+            runId,
+            // Status here is the in-memory return value the worker reads;
+            // the DB row says `pending`. Worker uses `errorMsg.includes(
+            // VIDEO_CONTINUE_REQUIRED)` to detect the marker, so we leave
+            // status as `failed` for backward compat with that probe even
+            // though the persisted state is correctly `pending`.
+            status: 'failed',
+            totalCostFen,
+            totalVideoCount,
+            errorMsg: `${node.descriptor.nodeType}: ${ne.message}`,
+            nodeOutputs,
+            qualityIssues,
+          };
+        }
 
         await db
           .update(workflowRuns)

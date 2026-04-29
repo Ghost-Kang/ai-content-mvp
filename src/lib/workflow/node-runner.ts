@@ -17,6 +17,7 @@ import type {
   StepStatus,
 } from './types';
 import { NodeError } from './types';
+import { isContinuationMarker } from './continuation';
 import {
   fireWorkflowNodeCompleted,
   fireWorkflowNodeFailed,
@@ -112,6 +113,26 @@ export abstract class NodeRunner<I = unknown, O = unknown> {
         const shouldRetry = ne.retryable && !isLastAttempt;
 
         if (!shouldRetry) {
+          // Continuation marker (video chunk hand-off) is NOT a real failure.
+          // Write `pending` so SSE never pushes red `failed` to the browser
+          // between chained worker invocations. See `lib/workflow/continuation.ts`
+          // for the full design rationale.
+          if (isContinuationMarker(ne)) {
+            await db
+              .update(workflowSteps)
+              .set({
+                status:      'pending' as StepStatus,
+                errorMsg:    null,
+                retryCount:  attempt,
+                completedAt: null,
+              })
+              .where(eq(workflowSteps.id, stepRow.id));
+            // Skip fireWorkflowNodeFailed on purpose — this is a checkpoint
+            // hand-off, not a failure. The truly-final invocation will fire
+            // fireWorkflowNodeCompleted on success.
+            throw ne;
+          }
+
           await db
             .update(workflowSteps)
             .set({

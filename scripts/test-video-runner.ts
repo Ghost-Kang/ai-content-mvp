@@ -439,6 +439,11 @@ async function caseContinuationCheckpointResume() {
     const [step1] = await db.select().from(workflowSteps).where(eq(workflowSteps.runId, f.runId));
     const frames1 = ((step1?.outputJson as { frames?: unknown[] } | null)?.frames ?? []).length;
     expect(frames1 === 2, `invoke 1 checkpoint stores 2 frames (got ${frames1})`);
+    // No-flicker contract: row stays `pending` between invocations so SSE
+    // never pushes a misleading `failed` to the browser.
+    expect(step1?.status === 'pending',  `invoke 1 step.status='pending' for SSE (got ${step1?.status})`);
+    expect(step1?.errorMsg === null,     `invoke 1 step.errorMsg cleared (got ${JSON.stringify(step1?.errorMsg)})`);
+    expect(step1?.completedAt === null,  `invoke 1 step.completedAt cleared (got ${JSON.stringify(step1?.completedAt)})`);
 
     let thrown2: unknown;
     try { await runner.run(ctx); } catch (e) { thrown2 = e; }
@@ -449,6 +454,9 @@ async function caseContinuationCheckpointResume() {
     const [step2] = await db.select().from(workflowSteps).where(eq(workflowSteps.runId, f.runId));
     const frames2 = ((step2?.outputJson as { frames?: unknown[] } | null)?.frames ?? []).length;
     expect(frames2 === 4, `invoke 2 checkpoint stores 4 frames (got ${frames2})`);
+    expect(step2?.status === 'pending',  `invoke 2 step.status='pending' for SSE (got ${step2?.status})`);
+    expect(step2?.errorMsg === null,     `invoke 2 step.errorMsg cleared (got ${JSON.stringify(step2?.errorMsg)})`);
+    expect(step2?.completedAt === null,  `invoke 2 step.completedAt cleared (got ${JSON.stringify(step2?.completedAt)})`);
 
     const result3 = await runner.run(ctx);
     expect(result3.output.frames.length === 5, `invoke 3 returns full 5-frame output (got ${result3.output.frames.length})`);

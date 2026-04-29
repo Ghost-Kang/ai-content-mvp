@@ -1,40 +1,53 @@
 // W2-07c UX fix — clean state hand-off between chained worker invocations.
 //
-// The video node throws `VIDEO_CONTINUE_REQUIRED` when it has rendered
-// its per-invocation chunk and needs another worker run to keep going.
-// At the moment that throws, the orchestrator has already written:
-//   - workflow_runs.status     = 'failed' + errorMsg = 'video: PROVIDER_FAILED VIDEO_CONTINUE_REQUIRED ...'
-//   - workflow_steps[video].status = 'failed' + errorMsg = same
+// The video node throws a NodeError carrying `VIDEO_CONTINUE_REQUIRED` in
+// its message when it has rendered its per-invocation chunk and needs
+// another worker run to keep going. From the system's POV this is NOT a
+// failure — it's a mid-flight checkpoint hand-off.
 //
-// The worker route catches the marker, enqueues the next QStash message,
-// and returns 200. But there's a 1–5s gap until QStash delivers the next
-// message. During that gap the SSE stream is happily pushing the `failed`
-// state to the user's browser → red error banner + red node card →
-// user thinks the run died and either panics or hits "重试".
+// Without special handling, both NodeRunner and Orchestrator catch the
+// throw and write `status='failed'` to workflow_steps and workflow_runs.
+// SSE picks that up and pushes `failed` to the user's browser → red ❌
+// error banner + red node card → user thinks the run died and either
+// panics or hits "重试" unnecessarily.
 //
-// Two-axis fix:
-//   1. UX: state during the gap should NOT be `failed` (it's not failed,
-//      it's mid-continuation).
-//   2. Lock contract: worker route's CAS gate only acquires lock when
-//      status ∈ ('pending', 'failed'). If we reset to `running`, the
-//      next continuation message lands, hits CAS, finds status='running',
-//      treats lock as held by a phantom worker, and silently drops.
-//      This would BREAK the chain.
+// The fix is a marker convention. Any layer that catches a NodeError
+// asks `isContinuationMarker(err)` and, when true:
+//   - writes `pending` (not `failed`)
+//   - clears errorMsg + completedAt
+//   - skips analytics + monthly-usage bumps
+// SSE then sees `pending` → grey "等待中" chip → no flicker.
 //
-// Both axes resolved by resetting to `pending`:
-//   - SSE pushes `pending` → grey calm chip, not red ❌
-//   - CAS gate accepts `pending`, lock acquisition succeeds for next
-//     invocation
+// Why `pending`, not `running`?
+//   The next worker invocation's CAS lock gate (in /api/workflow/run)
+//   only acquires when status ∈ ('pending', 'failed'). If we wrote
+//   `running` the next QStash continuation message would silently drop
+//   and break the chain entirely.
 //
-// Step row reset: same reasoning; we also clear errorMsg so the friendly
-// error banner doesn't show a "VIDEO_CONTINUE_REQUIRED" surface to the user.
-// completedAt cleared so node-runner's startedAt math doesn't show a
-// nonsensical "took 0s" on the next invocation.
+// `resetRunForContinuation` is a defensive fallback used by the worker
+// route in case the NodeRunner / Orchestrator layers above didn't
+// already write pending. Keeping it minimizes the impact of any
+// future drift in either of those layers.
 
 import { and, eq } from 'drizzle-orm';
 
 import { db, workflowRuns, workflowSteps } from '@/db';
-import type { NodeType } from './types';
+import { NodeError, type NodeType } from './types';
+
+/** String constant duplicated from `nodes/video.ts` to avoid a circular import. */
+export const VIDEO_CONTINUE_REQUIRED_MARKER = 'VIDEO_CONTINUE_REQUIRED';
+
+// Returns plain `boolean` (not a type predicate) on purpose — `ne` is
+// already typed as `NodeError` at the only call sites, so a predicate
+// would incorrectly narrow `ne` to `never` in the else branch.
+export function isContinuationMarker(err: unknown): boolean {
+  if (!(err instanceof NodeError)) return false;
+  return typeof err.message === 'string' && err.message.includes(VIDEO_CONTINUE_REQUIRED_MARKER);
+}
+
+export function isContinuationErrorMessage(msg: string | null | undefined): boolean {
+  return typeof msg === 'string' && msg.includes(VIDEO_CONTINUE_REQUIRED_MARKER);
+}
 
 export async function resetRunForContinuation(
   runId: string,
