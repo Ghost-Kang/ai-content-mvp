@@ -204,7 +204,40 @@ export function friendlyFromNodeError(
         isOpsIssue:  false,
       };
 
-    case 'SPEND_CAP_EXCEEDED':
+    case 'SPEND_CAP_EXCEEDED': {
+      // Two flavours surface here:
+      //   "Monthly cap exceeded: video_cap_exceeded (cost X/Y fen, videos N/M)"
+      //   "Monthly cap exceeded: cost_cap_exceeded (cost X/Y fen, videos N/M)"
+      // Show users which one tripped + the actual numbers so admins know
+      // exactly which env var to bump.
+      const numbersMatch = /cost (\d+)\/(\d+) fen, videos (\d+)\/(\d+)/.exec(rawMessage);
+      const numbersHint = numbersMatch
+        ? `当前已用：${(Number(numbersMatch[1]) / 100).toFixed(2)} 元 / ${numbersMatch[2] === '0' ? '∞' : (Number(numbersMatch[2]) / 100).toFixed(2)} 元，视频 ${numbersMatch[3]} / ${numbersMatch[4]} 条。`
+        : '';
+      const isVideoCap = rawMessage.includes('video_cap_exceeded');
+      const isCostCap  = rawMessage.includes('cost_cap_exceeded');
+      if (isVideoCap) {
+        return {
+          title:       '本月视频条数已用完',
+          detail:      `本团队本月的视频生成条数已达上限。${numbersHint}`,
+          hint:        '请等待下个自然月配额重置，或联系管理员调高 WORKFLOW_MONTHLY_VIDEO_CAP_COUNT。',
+          code:        'SPEND_CAP_EXCEEDED',
+          rawMessage,
+          isRetryable: false,
+          isOpsIssue:  true,
+        };
+      }
+      if (isCostCap) {
+        return {
+          title:       '本月生成预算已用完',
+          detail:      `本团队本月的视频生成花费已达上限。${numbersHint}`,
+          hint:        '请等待下个自然月配额重置，或联系管理员调高 WORKFLOW_MONTHLY_COST_CAP_CNY。',
+          code:        'SPEND_CAP_EXCEEDED',
+          rawMessage,
+          isRetryable: false,
+          isOpsIssue:  true,
+        };
+      }
       return {
         title:       '本月配额已用完',
         detail:      '本团队的月度生成预算或视频条数上限已经达到，本节点被预 flight 拦截。',
@@ -214,6 +247,7 @@ export function friendlyFromNodeError(
         isRetryable: false,
         isOpsIssue:  true,
       };
+    }
 
     case 'PARSE_FAILED':
       return {

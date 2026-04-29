@@ -18,6 +18,7 @@ import type {
 } from './types';
 import { NodeError } from './types';
 import { isContinuationMarker } from './continuation';
+import { SpendCapError } from './spend-cap';
 import {
   fireWorkflowNodeCompleted,
   fireWorkflowNodeFailed,
@@ -104,9 +105,17 @@ export abstract class NodeRunner<I = unknown, O = unknown> {
 
         return result;
       } catch (e) {
+        // SpendCapError (monthly video / cost cap) gets a dedicated NodeError
+        // code so the friendly-error mapper can show "本月配额已用完" instead
+        // of the generic "意外失败 / UNKNOWN" surface. Without this branch,
+        // `e instanceof NodeError` is false, the wildcard wraps as UNKNOWN,
+        // and the original SpendCapError type is permanently lost before
+        // the orchestrator's own SpendCapError check ever sees it.
         const ne = e instanceof NodeError
           ? e
-          : new NodeError('UNKNOWN', e instanceof Error ? e.message : String(e), false, e);
+          : e instanceof SpendCapError
+            ? new NodeError('SPEND_CAP_EXCEEDED', e.message, false, e)
+            : new NodeError('UNKNOWN', e instanceof Error ? e.message : String(e), false, e);
         lastErr = ne;
 
         const isLastAttempt = attempt >= this.descriptor.maxRetries;

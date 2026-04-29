@@ -202,6 +202,25 @@ function caseFlagSemantics() {
   expect(cap.isRetryable === false, 'SPEND_CAP_EXCEEDED → isRetryable=false (waiting for reset)');
   expect(cap.isOpsIssue === true,    'SPEND_CAP_EXCEEDED → isOpsIssue=true (admin needs to act)');
 
+  // Real production payload from SpendCapError — distinguishes video cap vs cost cap.
+  const videoCap = friendlyFromNodeError(
+    'SPEND_CAP_EXCEEDED: Monthly cap exceeded: video_cap_exceeded (cost 3477/50000 fen, videos 51/60)',
+    'video',
+  );
+  expect(videoCap.title.includes('视频条数'), `video cap → title says 视频条数 — got "${videoCap.title}"`);
+  expect(videoCap.detail.includes('51 / 60'), `video cap → detail shows 51/60 — got "${videoCap.detail}"`);
+  expect(videoCap.hint.includes('WORKFLOW_MONTHLY_VIDEO_CAP_COUNT'), 'video cap → hint names the env var to bump');
+  expect(videoCap.isRetryable === false, 'video cap → isRetryable=false');
+  expect(videoCap.isOpsIssue === true,   'video cap → isOpsIssue=true');
+
+  const costCap = friendlyFromNodeError(
+    'SPEND_CAP_EXCEEDED: Monthly cap exceeded: cost_cap_exceeded (cost 51200/50000 fen, videos 30/60)',
+    'video',
+  );
+  expect(costCap.title.includes('预算'),     `cost cap → title says 预算 — got "${costCap.title}"`);
+  expect(costCap.detail.includes('512.00 元'), `cost cap → detail shows numbers in 元 — got "${costCap.detail}"`);
+  expect(costCap.hint.includes('WORKFLOW_MONTHLY_COST_CAP_CNY'), 'cost cap → hint names the env var to bump');
+
   const upstream = friendlyFromNodeError(
     'UPSTREAM_MISSING: Node export requires upstream video output but it is missing',
     'export',
