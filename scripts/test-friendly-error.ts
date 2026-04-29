@@ -164,6 +164,30 @@ function caseCauseHeuristics() {
   );
   expect(llmAuth.isOpsIssue === true,  'LLM AUTH_FAILED → isOpsIssue=true');
   expect(llmAuth.isRetryable === false, 'LLM AUTH_FAILED → isRetryable=false');
+
+  // LLM_FATAL with SPEND_CAP_EXCEEDED (tenant-level)
+  // Real production payload: storyboard wraps non-retryable LLMError as
+  // NodeError('LLM_FATAL', 'LLM SPEND_CAP_EXCEEDED: Tenant daily cap hit: 526/500 分')
+  // and we must not mislead the user with "auth/context/filter" copy.
+  const tenantCap = friendlyFromNodeError(
+    'LLM_FATAL: LLM SPEND_CAP_EXCEEDED: Tenant daily cap hit: 526/500 分',
+    'storyboard',
+  );
+  expect(tenantCap.title.includes('预算'), `tenant SPEND_CAP → title mentions 预算 — got "${tenantCap.title}"`);
+  expect(tenantCap.detail.includes('团队'), `tenant SPEND_CAP → detail mentions 团队 — got "${tenantCap.detail}"`);
+  expect(tenantCap.isRetryable === false, 'tenant SPEND_CAP → isRetryable=false');
+  expect(tenantCap.isOpsIssue === true,   'tenant SPEND_CAP → isOpsIssue=true');
+  expect(!tenantCap.detail.includes('认证') && !tenantCap.detail.includes('过滤'),
+    `tenant SPEND_CAP must NOT show auth/filter copy — got detail "${tenantCap.detail}"`);
+
+  // LLM_FATAL with SPEND_CAP_EXCEEDED (global)
+  const globalCap = friendlyFromNodeError(
+    'LLM_FATAL: LLM SPEND_CAP_EXCEEDED: Global daily cap hit: 5012/5000 分',
+    'script',
+  );
+  expect(globalCap.title.includes('系统'),  `global SPEND_CAP → title mentions 系统 — got "${globalCap.title}"`);
+  expect(globalCap.isRetryable === false,    'global SPEND_CAP → isRetryable=false');
+  expect(globalCap.isOpsIssue === true,      'global SPEND_CAP → isOpsIssue=true');
 }
 
 // ─── Case 5: SPEND_CAP_EXCEEDED + UPSTREAM_MISSING flags ──────────────────────

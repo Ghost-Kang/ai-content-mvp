@@ -250,7 +250,27 @@ export function friendlyFromNodeError(
       };
 
     case 'LLM_FATAL':
-      // Usually a CONTEXT_TOO_LONG or CONTENT_FILTERED bubbled up
+      // SPEND_CAP_EXCEEDED arrives wrapped here because checkSpendCap
+      // throws a non-retryable LLMError, and script/storyboard nodes
+      // wrap any non-retryable LLMError as `NodeError('LLM_FATAL', 'LLM <code>: …')`.
+      // The generic LLM_FATAL fallback below would mislead with
+      // "auth / context / filter" copy, which has nothing to do with budget.
+      if (rawMessage.includes('SPEND_CAP_EXCEEDED')) {
+        const isTenantCap = rawMessage.includes('Tenant');
+        return {
+          title:       isTenantCap ? '今日 AI 预算已用完' : '系统今日 AI 预算已用完',
+          detail:      isTenantCap
+            ? '本团队今日 LLM 调用花费已达上限（默认 ¥5/天），脚本 / 分镜节点暂无法继续。'
+            : '系统全局今日 LLM 调用花费已达上限（默认 ¥50/天），所有租户暂无法继续。',
+          hint:        isTenantCap
+            ? 'UTC 0 点（北京 8:00）后会自动重置；或联系管理员调高 LLM_TENANT_DAILY_CAP_CNY。'
+            : 'UTC 0 点（北京 8:00）后会自动重置；或联系管理员调高 LLM_DAILY_CAP_CNY。',
+          code:        'LLM_FATAL',
+          rawMessage,
+          isRetryable: false,
+          isOpsIssue:  true,
+        };
+      }
       if (rawMessage.includes('CONTEXT_TOO_LONG')) {
         return {
           title:       'AI 输入超出长度上限',
