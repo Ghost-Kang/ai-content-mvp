@@ -538,6 +538,75 @@ async function caseContinuationStateReset() {
 
 // ─── Main ─────────────────────────────────────────────────────────────────────
 
+async function caseConcurrencyParallelBatch() {
+  console.log('\n[case 9] concurrency=3 — 5 frames render in batches (3+2) with single checkpoint per batch');
+  const f = await seedRun('concurrency');
+  const ctx = buildCtx(f, fakeStoryboardOutput(5, 5));
+
+  const prevConc  = process.env.WORKFLOW_VIDEO_CONCURRENCY;
+  const prevChunk = process.env.WORKFLOW_VIDEO_MAX_FRAMES_PER_INVOCATION;
+  process.env.WORKFLOW_VIDEO_CONCURRENCY = '3';
+  // Make sure the per-invocation chunk does not stop us short of 5 frames so
+  // the test exercises 2 batches inside a single invocation (3 + 2).
+  delete process.env.WORKFLOW_VIDEO_MAX_FRAMES_PER_INVOCATION;
+
+  // Concurrency probe: bump on submit, decrement on poll-success. We assert
+  // peak ≥ 2 to prove that more than one frame is genuinely in-flight at
+  // once (peak === 3 likely but not guaranteed under microtask scheduling).
+  let inFlight = 0;
+  let peakInFlight = 0;
+  class ConcurrencyProvider extends FakeVideoProvider {
+    async submit(req: VideoGenRequest): Promise<VideoGenSubmitResult> {
+      inFlight++;
+      if (inFlight > peakInFlight) peakInFlight = inFlight;
+      // Yield once so other Promise.all branches get a chance to also submit
+      // before any of them resolves — without this, microtask ordering can
+      // serialize the chain and hide concurrency.
+      await new Promise<void>((r) => setTimeout(r, 5));
+      return super.submit(req);
+    }
+    async pollJob(jobId: string): Promise<VideoGenJobSnapshot> {
+      await new Promise<void>((r) => setTimeout(r, 5));
+      const snap = await super.pollJob(jobId);
+      if (snap.status === 'succeeded' || snap.status === 'failed') {
+        inFlight = Math.max(0, inFlight - 1);
+      }
+      return snap;
+    }
+  }
+
+  try {
+    const provider = new ConcurrencyProvider(
+      Array.from({ length: 5 }, (_, i) => ({ kind: 'ok', jobId: `job-p-${i + 1}` } as SubmitOutcome)),
+      Array.from({ length: 5 }, (_, i) => ({ kind: 'snapshot', snap: okSnapshot({ jobId: `job-p-${i + 1}`, videoUrl: `https://cdn.example/p${i + 1}.mp4` }) } as PollOutcome)),
+    );
+    const runner = new VideoGenNodeRunner(provider);
+
+    const result = await runner.run(ctx);
+
+    expect(result.output.frames.length === 5,           `5 frames returned (got ${result.output.frames.length})`);
+    expect(provider.submitCalls.length === 5,           `provider.submit called exactly 5× (got ${provider.submitCalls.length})`);
+    expect(provider.pollCalls.length   === 5,           `provider.pollJob called exactly 5× (got ${provider.pollCalls.length})`);
+    // Order: rendered frames must be sorted by storyboard index regardless
+    // of which Seedance task happened to settle first.
+    const indices = result.output.frames.map((fr) => fr.index);
+    expect(indices.join(',') === '1,2,3,4,5',           `output frames sorted by index (got [${indices.join(',')}])`);
+    // Real concurrency proof: at least 2 frames in-flight at once.
+    expect(peakInFlight >= 2,                            `peak in-flight ≥ 2 (got ${peakInFlight}) — proves parallel fan-out`);
+
+    const [step] = await db.select().from(workflowSteps).where(eq(workflowSteps.runId, f.runId));
+    expect(step?.status === 'done',                      `step status=done (got ${step?.status})`);
+    const persistedFrames = ((step?.outputJson as { frames?: unknown[] } | null)?.frames ?? []).length;
+    expect(persistedFrames === 5,                        `persisted output has 5 frames (got ${persistedFrames})`);
+  } finally {
+    if (prevConc === undefined) delete process.env.WORKFLOW_VIDEO_CONCURRENCY;
+    else process.env.WORKFLOW_VIDEO_CONCURRENCY = prevConc;
+    if (prevChunk === undefined) delete process.env.WORKFLOW_VIDEO_MAX_FRAMES_PER_INVOCATION;
+    else process.env.WORKFLOW_VIDEO_MAX_FRAMES_PER_INVOCATION = prevChunk;
+    await cleanup(f);
+  }
+}
+
 async function main() {
   console.log('--- W2-05/06-V3 VideoGenNodeRunner unit tests (mocked provider) ---');
 
@@ -549,6 +618,7 @@ async function main() {
   await caseUpstreamMissing();
   await caseContinuationCheckpointResume();
   await caseContinuationStateReset();
+  await caseConcurrencyParallelBatch();
 
   if (totalFailures === 0) {
     console.log('\n✅ All assertions pass.');

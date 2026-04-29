@@ -101,6 +101,26 @@ function framesPerInvocation(): number | null {
 }
 
 /**
+ * Per-invocation parallel fan-out for frame rendering. Default 1 = serial
+ * (preserves the original FIFO test contract for FakeVideoProvider). Bump
+ * via env on real deployments — Seedance typically tolerates 3-5 concurrent
+ * tasks per API key. Set too high and you trip RATE_LIMITED en masse (the
+ * existing per-frame retry budget will absorb a few but not 17 simultaneous
+ * 429s).
+ *
+ * Within a chunk, frames are fanned out in batches of this size; cap
+ * preflight is summed for the whole batch to avoid the classic
+ * "concurrent calls each pass cap, then collectively breach it" race.
+ */
+function framesConcurrency(): number {
+  const raw = process.env.WORKFLOW_VIDEO_CONCURRENCY;
+  if (!raw) return 1;
+  const n = Number(raw);
+  if (!Number.isFinite(n) || n < 1) return 1;
+  return Math.floor(n);
+}
+
+/**
  * Demo / cost guard: cap how many frames a single run will render. Default
  * unset = render every storyboard frame. For W2-05 dev demos we set this to
  * 3 via env so a stuck retry loop doesn't burn ¥100. Production internal-test
@@ -191,20 +211,38 @@ export class VideoGenNodeRunner extends NodeRunner<VideoFrameInput[], VideoNodeO
     const chunk = framesPerInvocation();
     const targetFrames = chunk === null ? pendingFrames : pendingFrames.slice(0, Math.max(1, chunk));
 
-    for (const frame of targetFrames) {
-      const estimatedTokens     = this.provider.estimateTokensForFrame(frame.durationSec, DEFAULT_RESOLUTION);
-      const estimatedFrameCostFen = Math.ceil((estimatedTokens * this.provider.costPerMTokensFen) / 1_000_000);
+    const concurrency = framesConcurrency();
 
-      // Cap preflight per frame — IMPORTANT: assertCapAllows reads ONLY the
-      // DB-persisted snapshot, but the orchestrator only bumps monthly_usage
-      // AFTER the entire run finishes. So we have to project both the cost
-      // the previous frames in THIS run already burned (`runningCostFen`,
-      // `rendered.length`) AND the estimated cost of the frame we're about
-      // to render. Otherwise mid-run cap halt fires one or two frames late.
+    // Walk the per-invocation chunk in concurrency-sized batches. Each batch:
+    //   1. summed cap preflight (avoid the "N concurrent submits each pass
+    //      cap then collectively breach it" race),
+    //   2. Promise.all renderOneFrameWithRetry,
+    //   3. append outcomes in original storyboard order + single checkpoint
+    //      write (saves N-1 jsonb UPDATE roundtrips per batch).
+    //
+    // With concurrency=1 this collapses to the original serial behavior
+    // (one frame per batch), which is what the existing video runner
+    // tests rely on.
+    for (let i = 0; i < targetFrames.length; i += concurrency) {
+      const batch = targetFrames.slice(i, i + concurrency);
+
+      const estimatedBatchCostFen = batch.reduce((sum, f) => {
+        const t = this.provider.estimateTokensForFrame(f.durationSec, DEFAULT_RESOLUTION);
+        return sum + Math.ceil((t * this.provider.costPerMTokensFen) / 1_000_000);
+      }, 0);
+
+      // Cap preflight on the full batch — IMPORTANT: assertCapAllows reads
+      // ONLY the DB-persisted snapshot, but the orchestrator only bumps
+      // monthly_usage AFTER the entire run finishes. So we have to project
+      // both the cost the previous frames in THIS run already burned
+      // (`runningCostFen`, `rendered.length`) AND the estimated cost of
+      // every frame in the upcoming batch. Otherwise mid-run cap halt
+      // fires one or two frames late, and parallel batches can collectively
+      // overshoot.
       try {
         await assertCapAllows(ctx.tenantId, ctx.userId, {
-          addCostFen: runningCostFen + estimatedFrameCostFen,
-          addVideos:  rendered.length + 1,
+          addCostFen: runningCostFen + estimatedBatchCostFen,
+          addVideos:  rendered.length + batch.length,
         });
       } catch (e) {
         if (e instanceof SpendCapError) {
@@ -216,9 +254,25 @@ export class VideoGenNodeRunner extends NodeRunner<VideoFrameInput[], VideoNodeO
         throw e;
       }
 
-      const outcome = await this.renderOneFrameWithRetry(frame, ctx);
-      rendered.push(outcome);
-      runningCostFen += outcome.costFen;
+      // Fan out — Promise.all rejects on the first per-frame NodeError; any
+      // sibling renders that have already returned successfully will have
+      // updated `rendered` via the post-await sort/append below — but only
+      // if we wait for them. Promise.allSettled would let us preserve every
+      // partial success, at the cost of harder error semantics. For now we
+      // keep "first error wins" which matches the prior serial behavior:
+      // a single frame failure halts the entire video node.
+      const outcomes = await Promise.all(
+        batch.map((f) => this.renderOneFrameWithRetry(f, ctx)),
+      );
+
+      for (const outcome of outcomes) {
+        rendered.push(outcome);
+        runningCostFen += outcome.costFen;
+      }
+      // Stable order by storyboard index — Promise.all preserves array
+      // order, but rendered also contains hydrated checkpoint frames from
+      // earlier invocations, so sort once for downstream join sanity.
+      rendered.sort((a, b) => a.index - b.index);
       await this.writeCheckpoint(ctx.runId, rendered, runningCostFen);
     }
 
