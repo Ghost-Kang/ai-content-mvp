@@ -27,6 +27,7 @@ import {
   monthlyUsage,
 } from '../src/db';
 import { VIDEO_CONTINUE_REQUIRED, VideoGenNodeRunner } from '../src/lib/workflow/nodes/video';
+import { resetRunForContinuation } from '../src/lib/workflow/continuation';
 import { BaseVideoProvider } from '../src/lib/video-gen/providers/base';
 import {
   VideoGenError,
@@ -469,6 +470,64 @@ async function caseContinuationCheckpointResume() {
   }
 }
 
+async function caseContinuationStateReset() {
+  console.log('\n[case 8] continuation state reset — failed → pending without losing other steps');
+  const f = await seedRun('reset');
+
+  // Seed terminal "between-invocations" state: orchestrator just wrote
+  // run + video step as `failed` with VIDEO_CONTINUE_REQUIRED, while
+  // upstream nodes (topic/script/storyboard) finished cleanly.
+  const now = new Date();
+  await db
+    .update(workflowRuns)
+    .set({
+      status:      'failed',
+      errorMsg:    'video: PROVIDER_FAILED VIDEO_CONTINUE_REQUIRED: rendered 4/17 frames in this invocation; enqueue next worker run',
+      completedAt: now,
+    })
+    .where(eq(workflowRuns.id, f.runId));
+
+  await db.insert(workflowSteps).values([
+    { tenantId: f.tenantId, runId: f.runId, stepIndex: 0, nodeType: 'topic',      status: 'done',   retryCount: 0, costFen: 0, startedAt: now, completedAt: now },
+    { tenantId: f.tenantId, runId: f.runId, stepIndex: 1, nodeType: 'script',     status: 'done',   retryCount: 0, costFen: 0, startedAt: now, completedAt: now },
+    { tenantId: f.tenantId, runId: f.runId, stepIndex: 2, nodeType: 'storyboard', status: 'done',   retryCount: 0, costFen: 0, startedAt: now, completedAt: now },
+    { tenantId: f.tenantId, runId: f.runId, stepIndex: 3, nodeType: 'video',      status: 'failed', retryCount: 0, costFen: 316, startedAt: now, completedAt: now,
+      errorMsg: 'PROVIDER_FAILED: VIDEO_CONTINUE_REQUIRED: rendered 4/17 frames in this invocation; enqueue next worker run',
+      outputJson: { frames: [], totalCostFen: 316, incomplete: true } as object },
+  ]);
+
+  await resetRunForContinuation(f.runId, 'video');
+
+  const [runAfter] = await db.select().from(workflowRuns).where(eq(workflowRuns.id, f.runId));
+  expect(runAfter?.status === 'pending', `run.status reset to pending (got ${runAfter?.status})`);
+  expect(runAfter?.errorMsg === null,    `run.errorMsg cleared (got ${JSON.stringify(runAfter?.errorMsg)})`);
+  expect(runAfter?.completedAt === null, `run.completedAt cleared (got ${JSON.stringify(runAfter?.completedAt)})`);
+
+  const stepsAfter = await db.select().from(workflowSteps).where(eq(workflowSteps.runId, f.runId));
+  const byNode = new Map(stepsAfter.map((s) => [s.nodeType, s]));
+
+  const videoStep = byNode.get('video');
+  expect(videoStep?.status === 'pending', `video step reset to pending (got ${videoStep?.status})`);
+  expect(videoStep?.errorMsg === null,    `video step errorMsg cleared (got ${JSON.stringify(videoStep?.errorMsg)})`);
+  expect(videoStep?.completedAt === null, `video step completedAt cleared (got ${JSON.stringify(videoStep?.completedAt)})`);
+
+  // Critical: checkpoint payload survives so the next invocation can
+  // resume from the partial-render state.
+  const videoOutput = videoStep?.outputJson as { frames?: unknown[]; totalCostFen?: number } | null;
+  expect(typeof videoOutput?.totalCostFen === 'number', 'video step checkpoint preserved (totalCostFen)');
+
+  // Other nodes untouched — resume mode in the next invocation will
+  // hydrate-and-skip them.
+  for (const nt of ['topic', 'script', 'storyboard'] as const) {
+    expect(byNode.get(nt)?.status === 'done',     `${nt} step untouched (still done)`);
+    expect(byNode.get(nt)?.errorMsg === null,     `${nt} step errorMsg untouched`);
+    expect(byNode.get(nt)?.completedAt !== null,  `${nt} step completedAt preserved`);
+  }
+  expect(byNode.get('export') === undefined,      'export step never created (cascade halted)');
+
+  await cleanup(f);
+}
+
 // ─── Main ─────────────────────────────────────────────────────────────────────
 
 async function main() {
@@ -481,6 +540,7 @@ async function main() {
   await caseCapMidRun();
   await caseUpstreamMissing();
   await caseContinuationCheckpointResume();
+  await caseContinuationStateReset();
 
   if (totalFailures === 0) {
     console.log('\n✅ All assertions pass.');

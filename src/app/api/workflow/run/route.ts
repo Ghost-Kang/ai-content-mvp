@@ -25,6 +25,7 @@ import { eq, and, inArray, sql } from 'drizzle-orm';
 import { db, workflowRuns } from '@/db';
 import { buildFullOrchestrator } from '@/lib/workflow';
 import { VIDEO_CONTINUE_REQUIRED } from '@/lib/workflow/nodes/video';
+import { resetRunForContinuation } from '@/lib/workflow/continuation';
 
 // Vercel runtime: the worker may run for the duration of a full 5-node
 // workflow. The MVP-1 budget is ~5 minutes (Pro tier max). If we
@@ -134,6 +135,17 @@ async function handler(req: NextRequest): Promise<Response> {
     ) {
       try {
         const messageId = await enqueueContinuation(runId);
+        if (messageId) {
+          // UX: orchestrator wrote run+step status='failed' as part of
+          // throwing VIDEO_CONTINUE_REQUIRED. Now that we know the next
+          // worker invocation is queued (messageId truthy), reset state
+          // to 'pending' so SSE doesn't push misleading 'failed' to the
+          // client during the 1–5s QStash delivery gap. We also need
+          // 'pending' (not 'running') so the next worker's CAS lock
+          // gate (status IN pending,failed) can re-acquire the run.
+          // See `lib/workflow/continuation.ts` for the full rationale.
+          await resetRunForContinuation(runId, 'video');
+        }
         return Response.json(
           {
             ok: true,
