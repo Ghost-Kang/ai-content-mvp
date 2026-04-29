@@ -32,10 +32,10 @@ export function ScriptReviewChecklist({ onApprove, isApproving }: Props) {
   }
 
   return (
-    <div className="rounded-xl border border-gray-200 bg-gray-50 p-4">
+    <div className="rounded-2xl border border-white/10 bg-slate-950/45 p-4">
       <div className="mb-3 flex items-center justify-between">
-        <h3 className="text-sm font-medium text-gray-900">发布前自审 · {doneCount}/5</h3>
-        <span className="text-xs text-gray-400">全部勾选后可通过</span>
+        <h3 className="text-sm font-medium text-white">发布前自审 · {doneCount}/5</h3>
+        <span className="text-xs text-slate-500">全部勾选后可通过</span>
       </div>
 
       <ul className="space-y-2 mb-4">
@@ -46,11 +46,11 @@ export function ScriptReviewChecklist({ onApprove, isApproving }: Props) {
                 type="checkbox"
                 checked={checked[item.id]}
                 onChange={() => toggle(item.id)}
-                className="mt-0.5 h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                className="mt-0.5 h-4 w-4 rounded border-white/20 bg-slate-950 text-cyan-300 focus:ring-cyan-300"
               />
               <div className="min-w-0 flex-1">
-                <p className="text-sm text-gray-900 group-hover:text-gray-700">{item.label}</p>
-                <p className="text-xs text-gray-400">{item.hint}</p>
+                <p className="text-sm text-slate-100 group-hover:text-white">{item.label}</p>
+                <p className="text-xs text-slate-500">{item.hint}</p>
               </div>
             </label>
           </li>
@@ -61,7 +61,7 @@ export function ScriptReviewChecklist({ onApprove, isApproving }: Props) {
         type="button"
         onClick={onApprove}
         disabled={!allChecked || isApproving}
-        className="w-full rounded-lg bg-indigo-600 py-2.5 text-sm font-semibold text-white hover:bg-indigo-700 disabled:bg-gray-200 disabled:text-gray-400 disabled:cursor-not-allowed transition-colors"
+        className="w-full rounded-2xl bg-cyan-300 py-2.5 text-sm font-semibold text-slate-950 transition-colors hover:bg-cyan-200 disabled:cursor-not-allowed disabled:bg-slate-700 disabled:text-slate-400"
       >
         {isApproving ? '通过中...' : allChecked ? '通过并继续' : `还差 ${5 - doneCount} 项`}
       </button>

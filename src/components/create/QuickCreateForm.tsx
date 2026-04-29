@@ -117,9 +117,9 @@ export function QuickCreateForm() {
   if (step === 'generating') {
     return (
       <div className="flex flex-col items-center justify-center py-24 space-y-4">
-        <div className="h-10 w-10 animate-spin rounded-full border-4 border-indigo-200 border-t-indigo-600" />
-        <p className="text-sm text-gray-500">正在生成脚本，请稍候...</p>
-        <p className="text-xs text-gray-400">
+        <div className="h-10 w-10 animate-spin rounded-full border-4 border-cyan-300/20 border-t-cyan-300" />
+        <p className="text-sm text-slate-300">正在生成脚本，请稍候...</p>
+        <p className="text-xs text-slate-500">
           {lengthMode === 'short' ? '约15秒' : '约30秒'}
         </p>
       </div>
@@ -132,11 +132,11 @@ export function QuickCreateForm() {
     return (
       <div className="max-w-2xl mx-auto">
         <div className="mb-6 flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-gray-900">生成的脚本</h2>
+          <h2 className="text-lg font-semibold text-white">生成的脚本</h2>
           <button
             type="button"
             onClick={() => { setStep('form'); setResult(null); }}
-            className="text-sm text-gray-400 hover:text-gray-600"
+            className="text-sm text-slate-400 hover:text-cyan-200"
           >
             重新开始
           </button>
@@ -150,7 +150,7 @@ export function QuickCreateForm() {
           </div>
         )}
         {errorMessage && (
-          <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          <div className="mb-4 rounded-2xl border border-rose-300/30 bg-rose-400/10 px-4 py-3 text-sm text-rose-100">
             {errorMessage}
           </div>
         )}
@@ -165,7 +165,7 @@ export function QuickCreateForm() {
           isRegenerating={generateScript.isPending}
         />
         {result.retryCount > 0 && (
-          <p className="mt-3 text-xs text-gray-400 text-right">
+          <p className="mt-3 text-xs text-slate-500 text-right">
             生成重试 {result.retryCount} 次 · {result.provider}
           </p>
         )}
@@ -184,9 +184,9 @@ export function QuickCreateForm() {
   if (step === 'approved' && result && sessionId) {
     return (
       <div className="max-w-2xl mx-auto">
-        <div className="mb-6 rounded-xl border border-green-200 bg-green-50 p-5">
-          <p className="text-sm font-medium text-green-900">✓ 脚本已通过自审</p>
-          <p className="mt-1 text-xs text-green-700">
+        <div className="mb-6 rounded-2xl border border-emerald-300/30 bg-emerald-400/10 p-5">
+          <p className="text-sm font-medium text-emerald-100">✓ 脚本已通过自审</p>
+          <p className="mt-1 text-xs text-emerald-100/75">
             复制到抖音创作工具，或下载 .txt 备份。导出内容自动附加 CAC 合规声明。
           </p>
         </div>
@@ -194,7 +194,7 @@ export function QuickCreateForm() {
           <ExportPanel sessionId={sessionId} />
         </div>
         <details className="mb-6">
-          <summary className="cursor-pointer text-sm text-gray-500 hover:text-gray-700">
+          <summary className="cursor-pointer text-sm text-slate-400 hover:text-cyan-200">
             查看脚本详情
           </summary>
           <div className="mt-3">
@@ -213,7 +213,7 @@ export function QuickCreateForm() {
         <button
           type="button"
           onClick={() => { setStep('form'); setResult(null); setSessionId(null); }}
-          className="w-full rounded-lg border border-gray-200 py-2.5 text-sm text-gray-600 hover:border-gray-300"
+          className="w-full rounded-2xl border border-white/10 py-2.5 text-sm text-slate-300 hover:border-cyan-300/40 hover:text-cyan-200"
         >
           创建新脚本
         </button>
@@ -226,9 +226,9 @@ export function QuickCreateForm() {
   return (
     <form onSubmit={handleSubmit} className="max-w-2xl mx-auto space-y-6">
       {errorMessage && (
-        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+        <div className="rounded-2xl border border-rose-300/30 bg-rose-400/10 px-4 py-3 text-sm text-rose-100">
           <p className="font-medium">生成失败</p>
-          <p className="mt-0.5 text-xs text-red-600">{errorMessage}</p>
+          <p className="mt-0.5 text-xs text-rose-100/75">{errorMessage}</p>
         </div>
       )}
       <LengthToggle value={lengthMode} onChange={setLengthMode} />
@@ -236,7 +236,7 @@ export function QuickCreateForm() {
 
       <div className="space-y-4">
         <div>
-          <label htmlFor="productName" className="block text-sm font-medium text-gray-700 mb-1">
+          <label htmlFor="productName" className="block text-sm font-medium text-white mb-1">
             产品名称
           </label>
           <input
@@ -246,12 +246,12 @@ export function QuickCreateForm() {
             onChange={(e) => setProductName(e.target.value)}
             placeholder="例：某某SaaS内容工具"
             maxLength={100}
-            className="w-full rounded-lg border border-gray-200 px-3.5 py-2.5 text-sm placeholder-gray-400 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+            className="w-full rounded-2xl border border-white/10 bg-slate-950/60 px-3.5 py-2.5 text-sm text-white placeholder:text-slate-500 focus:border-cyan-300/60 focus:outline-none focus:ring-1 focus:ring-cyan-300/40"
           />
         </div>
 
         <div>
-          <label htmlFor="targetAudience" className="block text-sm font-medium text-gray-700 mb-1">
+          <label htmlFor="targetAudience" className="block text-sm font-medium text-white mb-1">
             目标受众
           </label>
           <input
@@ -261,12 +261,12 @@ export function QuickCreateForm() {
             onChange={(e) => setTargetAudience(e.target.value)}
             placeholder="例：10-100人B2B SaaS公司的市场负责人"
             maxLength={200}
-            className="w-full rounded-lg border border-gray-200 px-3.5 py-2.5 text-sm placeholder-gray-400 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+            className="w-full rounded-2xl border border-white/10 bg-slate-950/60 px-3.5 py-2.5 text-sm text-white placeholder:text-slate-500 focus:border-cyan-300/60 focus:outline-none focus:ring-1 focus:ring-cyan-300/40"
           />
         </div>
 
         <div>
-          <label htmlFor="coreClaim" className="block text-sm font-medium text-gray-700 mb-1">
+          <label htmlFor="coreClaim" className="block text-sm font-medium text-white mb-1">
             核心主张
           </label>
           <textarea
@@ -276,16 +276,16 @@ export function QuickCreateForm() {
             onChange={(e) => setCoreClaim(e.target.value)}
             placeholder="例：AI生成的内容没人看，不是因为AI不好，是因为缺少你自己的品牌声音"
             maxLength={300}
-            className="w-full rounded-lg border border-gray-200 px-3.5 py-2.5 text-sm placeholder-gray-400 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 resize-none"
+            className="w-full rounded-2xl border border-white/10 bg-slate-950/60 px-3.5 py-2.5 text-sm text-white placeholder:text-slate-500 focus:border-cyan-300/60 focus:outline-none focus:ring-1 focus:ring-cyan-300/40 resize-none"
           />
-          <p className="mt-1 text-right text-xs text-gray-400">{coreClaim.length}/300</p>
+          <p className="mt-1 text-right text-xs text-slate-500">{coreClaim.length}/300</p>
         </div>
       </div>
 
       <button
         type="submit"
         disabled={!canSubmit}
-        className="w-full rounded-xl bg-indigo-600 py-3 text-sm font-semibold text-white hover:bg-indigo-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+        className="w-full rounded-2xl bg-cyan-300 py-3 text-sm font-semibold text-slate-950 shadow-lg shadow-cyan-400/20 transition-colors hover:bg-cyan-200 disabled:cursor-not-allowed disabled:bg-slate-600 disabled:text-slate-300"
       >
         生成脚本
       </button>

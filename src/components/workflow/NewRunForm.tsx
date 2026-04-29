@@ -64,15 +64,15 @@ export function NewRunForm() {
   return (
     <form onSubmit={handleSubmit} className="space-y-5">
       {fromTrending && initialTopic && (
-        <div className="rounded-md bg-indigo-50 px-3 py-2 text-xs text-indigo-700 ring-1 ring-inset ring-indigo-200">
+        <div className="rounded-2xl border border-cyan-300/20 bg-cyan-300/10 px-3 py-2 text-xs text-cyan-100">
           已从 <span className="font-medium">「热门选题」</span> 预填，可直接修改后启动。
         </div>
       )}
       <div>
-        <label htmlFor="topic" className="block text-sm font-medium text-gray-900">
+        <label htmlFor="topic" className="block text-sm font-medium text-white">
           主题
         </label>
-        <p className="mt-0.5 text-xs text-gray-500">
+        <p className="mt-0.5 text-xs text-slate-400">
           一句话描述你想做的视频内容（{TOPIC_MIN}–{TOPIC_MAX} 字）。
         </p>
         <textarea
@@ -83,29 +83,29 @@ export function NewRunForm() {
           rows={3}
           placeholder="例：教 35+ 妈妈用大模型 5 分钟搞定家庭日历"
           maxLength={TOPIC_MAX}
-          className="mt-2 block w-full resize-none rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm placeholder:text-gray-400 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+          className="mt-2 block w-full resize-none rounded-2xl border border-white/10 bg-slate-950/60 px-3 py-2 text-sm text-white shadow-sm placeholder:text-slate-500 focus:border-cyan-300/60 focus:outline-none focus:ring-1 focus:ring-cyan-300/40"
           disabled={submitting}
         />
-        <div className="mt-1 flex justify-between text-xs text-gray-400">
+        <div className="mt-1 flex justify-between text-xs text-slate-500">
           <span>{trimmed.length} / {TOPIC_MAX}</span>
           <span>5 节点：选题 → 脚本 → 分镜 → 视频 → 导出</span>
         </div>
       </div>
 
       {errorMessage && (
-        <div className="rounded-md bg-rose-50 px-3 py-2 text-sm text-rose-700 ring-1 ring-inset ring-rose-200">
+        <div className="rounded-2xl border border-rose-300/30 bg-rose-400/10 px-3 py-2 text-sm text-rose-100">
           {errorMessage}
         </div>
       )}
 
       <div className="flex items-center justify-between">
-        <p className="text-xs text-gray-500">
+        <p className="text-xs text-slate-400">
           预估花费 ≤ ¥{(15).toFixed(2)} / 运行（含视频生成）
         </p>
         <button
           type="submit"
           disabled={!canSubmit}
-          className="inline-flex items-center gap-2 rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white shadow-sm transition-colors hover:bg-indigo-700 disabled:cursor-not-allowed disabled:bg-gray-300"
+          className="inline-flex items-center gap-2 rounded-2xl bg-cyan-300 px-4 py-2 text-sm font-semibold text-slate-950 shadow-sm shadow-cyan-400/20 transition-colors hover:bg-cyan-200 disabled:cursor-not-allowed disabled:bg-slate-600 disabled:text-slate-300"
         >
           {submitting ? (
             <>

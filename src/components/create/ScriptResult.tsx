@@ -98,15 +98,15 @@ export function ScriptResult({
             className={[
               'inline-flex items-center rounded-full px-3 py-1 text-sm font-medium',
               charStatus === 'ok'
-                ? 'bg-green-100 text-green-800'
-                : 'bg-red-100 text-red-800',
+                ? 'bg-emerald-300/15 text-emerald-100 ring-1 ring-emerald-300/25'
+                : 'bg-rose-300/15 text-rose-100 ring-1 ring-rose-300/25',
             ].join(' ')}
           >
             {charCount}字
           </span>
-          <span className="text-sm text-gray-500">{frameCount}帧</span>
+          <span className="text-sm text-slate-400">{frameCount}帧</span>
           {suppressionFlags.length > 0 && (
-            <span className="inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-xs text-amber-700">
+            <span className="inline-flex items-center rounded-full bg-amber-300/15 px-2 py-0.5 text-xs text-amber-100 ring-1 ring-amber-300/25">
               {suppressionFlags.length}处提示
             </span>
           )}
@@ -115,7 +115,7 @@ export function ScriptResult({
           type="button"
           onClick={onRegenerate}
           disabled={isRegenerating}
-          className="rounded-lg border border-gray-200 px-4 py-1.5 text-sm text-gray-600 hover:border-gray-300 disabled:opacity-50"
+          className="rounded-xl border border-white/10 px-4 py-1.5 text-sm text-slate-300 hover:border-cyan-300/40 hover:text-cyan-200 disabled:opacity-50"
         >
           {isRegenerating ? '重新生成中...' : '重新生成'}
         </button>
@@ -123,30 +123,30 @@ export function ScriptResult({
 
       {/* W4-04 字数漂移引导 */}
       {drift && (
-        <div className="rounded-lg border border-blue-200 bg-blue-50 p-3">
-          <p className="text-xs font-medium text-blue-700 mb-1">
+        <div className="rounded-2xl border border-cyan-300/25 bg-cyan-300/10 p-3">
+          <p className="text-xs font-medium text-cyan-100 mb-1">
             {drift.direction === 'under'
               ? `距离理想字数 ↓ ${drift.distance} 字`
               : `超出理想字数 ↑ ${drift.distance} 字`}
             {longestIdx !== null && shortestIdx !== null && (
-              <span className="ml-2 text-blue-500 font-normal">
+              <span className="ml-2 text-cyan-200/70 font-normal">
                 · 最长：第 {longestIdx} 帧 · 最短：第 {shortestIdx} 帧
               </span>
             )}
           </p>
-          <p className="text-xs text-blue-600 leading-relaxed">{drift.advice}</p>
+          <p className="text-xs text-cyan-100/75 leading-relaxed">{drift.advice}</p>
         </div>
       )}
 
       {/* Suppression warnings */}
       {suppressionFlags.length > 0 && (
-        <div className="rounded-lg border border-amber-200 bg-amber-50 p-3">
-          <p className="text-xs font-medium text-amber-700 mb-1">
+        <div className="rounded-2xl border border-amber-300/25 bg-amber-300/10 p-3">
+          <p className="text-xs font-medium text-amber-100 mb-1">
             检测到可能降低真实感的表达，建议人工检查：
           </p>
           <ul className="space-y-0.5">
             {suppressionFlags.map((f, i) => (
-              <li key={i} className="text-xs text-amber-600">
+              <li key={i} className="text-xs text-amber-100/75">
                 · [{f.category}] &quot;{f.matchedText}&quot;
               </li>
             ))}
@@ -170,20 +170,20 @@ export function ScriptResult({
             <div
               key={frame.index}
               className={[
-                'group rounded-xl border p-4 shadow-sm transition-colors',
+                'group rounded-2xl border p-4 shadow-sm transition-colors',
                 isExtreme
-                  ? 'border-blue-300 bg-blue-50/40'
-                  : 'border-gray-100 bg-white hover:border-gray-200',
+                  ? 'border-cyan-300/45 bg-cyan-300/10'
+                  : 'border-white/10 bg-slate-950/45 hover:border-cyan-300/30 hover:bg-white/[0.05]',
               ].join(' ')}
             >
               <div className="flex items-start gap-3">
-                <span className="shrink-0 mt-0.5 flex h-6 w-6 items-center justify-center rounded-full bg-gray-100 text-xs font-medium text-gray-500">
+                <span className="shrink-0 mt-0.5 flex h-6 w-6 items-center justify-center rounded-full bg-cyan-300/10 text-xs font-medium text-cyan-100 ring-1 ring-cyan-300/20">
                   {frame.index}
                 </span>
                 <div className="min-w-0 flex-1">
-                  <p className="text-sm leading-relaxed text-gray-900">{frame.text}</p>
+                  <p className="text-sm leading-relaxed text-slate-100">{frame.text}</p>
                   {frame.visualDirection && (
-                    <p className="mt-1.5 text-xs text-gray-400 italic">
+                    <p className="mt-1.5 text-xs text-slate-500 italic">
                       {frame.visualDirection}
                     </p>
                   )}
@@ -193,10 +193,10 @@ export function ScriptResult({
                     className={[
                       'text-xs tabular-nums',
                       isOverLimit
-                        ? 'text-red-500 font-medium'
+                        ? 'text-rose-300 font-medium'
                         : isUnderLimit
-                          ? 'text-amber-500 font-medium'
-                          : 'text-gray-300',
+                          ? 'text-amber-300 font-medium'
+                          : 'text-slate-600',
                     ].join(' ')}
                     title={
                       isOverLimit
@@ -208,7 +208,7 @@ export function ScriptResult({
                   >
                     {frameChars}字
                   </span>
-                  <span className="text-xs text-gray-300">{frame.durationS}s</span>
+                  <span className="text-xs text-slate-600">{frame.durationS}s</span>
                 </div>
               </div>
             </div>
@@ -217,9 +217,9 @@ export function ScriptResult({
       </div>
 
       {/* Comment bait question */}
-      <div className="rounded-xl border-2 border-dashed border-indigo-200 bg-indigo-50 p-4">
-        <p className="text-xs font-medium text-indigo-500 mb-1">评论区引导问题</p>
-        <p className="text-sm text-indigo-900 font-medium">{commentBaitQuestion}</p>
+      <div className="rounded-2xl border border-dashed border-violet-300/35 bg-violet-300/10 p-4">
+        <p className="text-xs font-medium text-violet-100 mb-1">评论区引导问题</p>
+        <p className="text-sm text-violet-50 font-medium">{commentBaitQuestion}</p>
       </div>
     </div>
   );

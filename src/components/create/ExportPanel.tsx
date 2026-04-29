@@ -49,15 +49,15 @@ export function ExportPanel({ sessionId }: Props) {
   }
 
   return (
-    <div className="rounded-xl border border-gray-200 bg-white p-4">
+    <div className="rounded-2xl border border-white/10 bg-slate-950/45 p-4">
       <div className="mb-3 flex items-center justify-between">
-        <h3 className="text-sm font-medium text-gray-900">导出脚本</h3>
-        <div className="flex gap-1 rounded-lg bg-gray-100 p-0.5 text-xs">
+        <h3 className="text-sm font-medium text-white">导出脚本</h3>
+        <div className="flex gap-1 rounded-xl bg-white/10 p-0.5 text-xs">
           <button
             type="button"
             onClick={() => setFormat('storyboard')}
             className={`rounded-md px-2.5 py-1 ${
-              format === 'storyboard' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500'
+              format === 'storyboard' ? 'bg-cyan-300 text-slate-950 shadow-sm' : 'text-slate-400'
             }`}
           >
             分镜版
@@ -66,7 +66,7 @@ export function ExportPanel({ sessionId }: Props) {
             type="button"
             onClick={() => setFormat('plain')}
             className={`rounded-md px-2.5 py-1 ${
-              format === 'plain' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500'
+              format === 'plain' ? 'bg-cyan-300 text-slate-950 shadow-sm' : 'text-slate-400'
             }`}
           >
             纯文本
@@ -74,10 +74,10 @@ export function ExportPanel({ sessionId }: Props) {
         </div>
       </div>
 
-      {isLoading && <p className="text-xs text-gray-400">生成导出内容...</p>}
+      {isLoading && <p className="text-xs text-slate-500">生成导出内容...</p>}
 
       {error && (
-        <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
+        <div className="rounded-xl border border-rose-300/30 bg-rose-400/10 px-3 py-2 text-xs text-rose-100">
           {error.message}
           <button
             type="button"
@@ -91,7 +91,7 @@ export function ExportPanel({ sessionId }: Props) {
 
       {data && (
         <>
-          <pre className="mb-3 max-h-64 overflow-auto rounded-lg bg-gray-50 p-3 text-xs text-gray-700 whitespace-pre-wrap font-mono">
+          <pre className="mb-3 max-h-64 overflow-auto rounded-xl bg-slate-950/70 p-3 text-xs text-slate-200 whitespace-pre-wrap font-mono">
             {data.content}
           </pre>
 
@@ -101,10 +101,10 @@ export function ExportPanel({ sessionId }: Props) {
               onClick={handleCopy}
               className={`flex-1 rounded-lg py-2 text-sm font-medium transition-colors ${
                 copyState === 'copied'
-                  ? 'bg-green-100 text-green-800'
+                  ? 'bg-emerald-300/20 text-emerald-100'
                   : copyState === 'error'
-                    ? 'bg-red-100 text-red-800'
-                    : 'bg-gray-900 text-white hover:bg-gray-800'
+                    ? 'bg-rose-300/20 text-rose-100'
+                    : 'bg-cyan-300 text-slate-950 hover:bg-cyan-200'
               }`}
             >
               {copyState === 'copied' ? '✓ 已复制' : copyState === 'error' ? '复制失败' : '复制到剪贴板'}
@@ -112,13 +112,13 @@ export function ExportPanel({ sessionId }: Props) {
             <button
               type="button"
               onClick={handleDownload}
-              className="flex-1 rounded-lg border border-gray-200 py-2 text-sm font-medium text-gray-700 hover:border-gray-300"
+              className="flex-1 rounded-lg border border-white/10 py-2 text-sm font-medium text-slate-300 hover:border-cyan-300/40 hover:text-cyan-200"
             >
               下载 .txt
             </button>
           </div>
 
-          <p className="mt-2 text-xs text-gray-400">
+          <p className="mt-2 text-xs text-slate-500">
             文件名：{data.filename} · 含 CAC 合规声明
           </p>
         </>

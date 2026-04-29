@@ -31,6 +31,7 @@ import {
 } from '@/lib/data-source/newrank';
 import { NichePanel } from '@/components/topics/NichePanel';
 import { TopicCard } from '@/components/topics/TopicCard';
+import { TechBadge, TechCard, TechHeader, TechPageShell } from '@/components/layout/TechPage';
 
 export const dynamic = 'force-dynamic';
 
@@ -49,20 +50,17 @@ export default async function TopicsPage({ searchParams }: PageProps) {
   const dateParam = typeof params.date === 'string' ? params.date : undefined;
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <header className="border-b border-gray-200 bg-white">
-        <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
-          <div className="flex items-baseline gap-4">
-            <Link href="/dashboard" className="text-base font-semibold text-gray-900 hover:text-indigo-600">
-              ← 仪表板
-            </Link>
-            <h1 className="text-base font-semibold text-gray-900">热门选题</h1>
-          </div>
-          <UserButton afterSignOutUrl="/" />
-        </div>
-      </header>
+    <TechPageShell>
+      <TechHeader backHref="/dashboard" backLabel="控制台" right={<UserButton afterSignOutUrl="/" />} />
 
-      <main className="mx-auto max-w-6xl space-y-6 px-6 py-8">
+      <main className="mx-auto max-w-7xl space-y-8 px-6 py-10">
+        <section>
+          <TechBadge tone="cyan">Topic Radar</TechBadge>
+          <h1 className="mt-4 text-4xl font-black tracking-tight text-white sm:text-5xl">热门选题雷达</h1>
+          <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-300">
+            从 4 个内容平台抓取趋势候选，先看爆点，再一键把标题送入视频工作流。
+          </p>
+        </section>
         {isNewrankConfigured() ? (
           <>
             <NichePanel />
@@ -72,7 +70,7 @@ export default async function TopicsPage({ searchParams }: PageProps) {
           <NotConfiguredNotice />
         )}
       </main>
-    </div>
+    </TechPageShell>
   );
 }
 
@@ -100,27 +98,27 @@ async function TrendingContent({ date }: { date?: string }) {
 
   return (
     <div className="space-y-8">
-      <div>
-        <p className="text-xs uppercase tracking-wide text-gray-400">数据日期 · {result.date}</p>
-        <h2 className="mt-1 text-2xl font-semibold text-gray-900">
+      <TechCard className="p-5">
+        <p className="text-xs uppercase tracking-[0.25em] text-cyan-200">数据日期 · {result.date}</p>
+        <h2 className="mt-2 text-2xl font-bold text-white">
           {totalCount > 0 ? `今日 ${totalCount} 条候选` : '暂无候选'}
         </h2>
-        <p className="mt-1 text-sm text-gray-500">
+        <p className="mt-2 text-sm text-slate-300">
           点击任意卡片的「用这条」即把标题预填到新工作流；点「AI 分析」获取「为什么火 / 怎么改造」建议。
         </p>
-        <p className="mt-1 text-xs text-gray-400">
+        <p className="mt-2 text-xs text-slate-500">
           数据源：新榜 · 默认 T-3 日期（更早数据更稳）
           {date ? ' · ?date= 覆盖' : ' · 可加 ?date=YYYY-MM-DD 查指定日期'}
         </p>
-      </div>
+      </TechCard>
 
       {result.platforms.map((p) => (
         <section key={p.platform}>
           <div className="mb-3 flex items-baseline justify-between">
-            <h3 className="text-base font-semibold text-gray-900">
-              {p.label} <span className="ml-2 text-xs font-normal text-gray-400">{p.platform.toUpperCase()}</span>
+            <h3 className="text-base font-semibold text-white">
+              {p.label} <span className="ml-2 text-xs font-normal text-cyan-200/70">{p.platform.toUpperCase()}</span>
             </h3>
-            <p className="text-xs text-gray-400">
+            <p className="text-xs text-slate-400">
               {p.items.length > 0 ? `Top ${Math.min(TOPN_PER_PLATFORM, p.items.length)} / ${p.items.length}` : '暂无数据'}
             </p>
           </div>
@@ -132,7 +130,7 @@ async function TrendingContent({ date }: { date?: string }) {
           )}
 
           {p.items.length === 0 ? (
-            <div className="rounded-md border border-dashed border-gray-200 bg-white px-4 py-6 text-center text-sm text-gray-400">
+            <div className="rounded-2xl border border-dashed border-white/15 bg-white/[0.04] px-4 py-6 text-center text-sm text-slate-400">
               本日尚无可用数据
             </div>
           ) : (
@@ -154,11 +152,11 @@ async function TrendingContent({ date }: { date?: string }) {
 
 function NotConfiguredNotice() {
   return (
-    <div className="rounded-md bg-amber-50 px-4 py-3 text-sm text-amber-800 ring-1 ring-inset ring-amber-200">
+    <div className="rounded-2xl border border-amber-300/30 bg-amber-300/10 px-4 py-3 text-sm text-amber-100">
       新榜 API 未配置：缺少 <code className="rounded bg-amber-100 px-1 font-mono text-xs">NEWRANK_API_KEY</code>。
       你仍可在
       {' '}
-      <Link href="/runs/new" className="font-medium text-amber-900 underline">「新建工作流」</Link>
+      <Link href="/runs/new" className="font-medium text-amber-50 underline">「新建工作流」</Link>
       {' '}
       手动输入主题。
     </div>

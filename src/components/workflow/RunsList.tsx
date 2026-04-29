@@ -32,7 +32,7 @@ export function RunsList({ pageSize = 20 }: RunsListProps) {
 
   if (query.isLoading) {
     return (
-      <div className="rounded-lg border border-gray-200 bg-white p-8 text-center text-sm text-gray-500">
+      <div className="rounded-2xl border border-white/10 bg-white/[0.07] p-8 text-center text-sm text-slate-300 backdrop-blur-xl">
         加载中…
       </div>
     );
@@ -40,7 +40,7 @@ export function RunsList({ pageSize = 20 }: RunsListProps) {
 
   if (query.isError) {
     return (
-      <div className="rounded-lg border border-rose-200 bg-rose-50 p-6 text-sm text-rose-700">
+      <div className="rounded-2xl border border-rose-300/30 bg-rose-400/10 p-6 text-sm text-rose-100">
         无法加载运行列表：{query.error.message}
       </div>
     );
@@ -50,11 +50,11 @@ export function RunsList({ pageSize = 20 }: RunsListProps) {
 
   if (runs.length === 0) {
     return (
-      <div className="rounded-lg border border-dashed border-gray-200 bg-white p-12 text-center">
-        <p className="text-sm text-gray-500">还没有任何工作流运行。</p>
+      <div className="rounded-3xl border border-dashed border-white/15 bg-white/[0.05] p-12 text-center backdrop-blur-xl">
+        <p className="text-sm text-slate-300">还没有任何工作流运行。</p>
         <Link
           href="/runs/new"
-          className="mt-4 inline-flex items-center rounded-md bg-indigo-600 px-3 py-2 text-sm font-medium text-white shadow-sm hover:bg-indigo-700"
+          className="mt-4 inline-flex items-center rounded-2xl bg-cyan-300 px-4 py-2 text-sm font-semibold text-slate-950 shadow-sm hover:bg-cyan-200"
         >
           启动第一个工作流
         </Link>
@@ -63,16 +63,16 @@ export function RunsList({ pageSize = 20 }: RunsListProps) {
   }
 
   return (
-    <ul className="divide-y divide-gray-100 overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm">
+    <ul className="divide-y divide-white/10 overflow-hidden rounded-3xl border border-white/10 bg-white/[0.07] shadow-2xl shadow-slate-950/25 backdrop-blur-xl">
       {runs.map((r) => (
         <li key={r.id}>
           <Link
             href={`/runs/${r.id}`}
-            className="flex items-center justify-between gap-4 px-5 py-4 transition-colors hover:bg-gray-50"
+            className="flex items-center justify-between gap-4 px-5 py-4 transition-colors hover:bg-white/[0.06]"
           >
             <div className="min-w-0 flex-1">
-              <p className="truncate text-sm font-medium text-gray-900">{r.topic}</p>
-              <div className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-0.5 text-xs text-gray-500">
+              <p className="truncate text-sm font-medium text-white">{r.topic}</p>
+              <div className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-0.5 text-xs text-slate-400">
                 <span>{formatRelativeTime(r.createdAt)}</span>
                 <span>{formatFen(r.totalCostFen)}</span>
                 {r.totalVideoCount > 0 && <span>{r.totalVideoCount} 段</span>}

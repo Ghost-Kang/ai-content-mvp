@@ -73,22 +73,22 @@ export function TopicCard({ item }: Props) {
   }
 
   return (
-    <div className="flex h-full flex-col justify-between rounded-lg border border-gray-200 bg-white p-4 shadow-sm transition-colors hover:border-indigo-300">
+    <div className="flex h-full flex-col justify-between rounded-2xl border border-white/10 bg-white/[0.07] p-4 shadow-lg shadow-slate-950/25 backdrop-blur-xl transition hover:-translate-y-0.5 hover:border-cyan-300/35 hover:bg-white/[0.10]">
       <div>
-        <div className="flex items-baseline justify-between text-xs text-gray-400">
-          <span className="rounded bg-gray-100 px-1.5 py-0.5 font-mono text-[10px] text-gray-600">
+        <div className="flex items-baseline justify-between text-xs text-slate-400">
+          <span className="rounded-full bg-cyan-300/10 px-2 py-0.5 font-mono text-[10px] text-cyan-100 ring-1 ring-cyan-300/20">
             #{item.rank}
           </span>
           {item.authorNickname && (
-            <span className="ml-2 truncate text-right text-gray-500" title={item.authorNickname}>
+            <span className="ml-2 truncate text-right text-slate-400" title={item.authorNickname}>
               {item.authorNickname}
             </span>
           )}
         </div>
-        <p className="mt-2 line-clamp-3 text-sm text-gray-900">{title}</p>
-        <p className="mt-2 flex flex-wrap gap-2 text-[11px] text-gray-400">
+        <p className="mt-3 line-clamp-3 text-sm leading-6 text-white">{title}</p>
+        <p className="mt-3 flex flex-wrap gap-2 text-[11px] text-slate-400">
           {item.firstCategory && (
-            <span className="rounded bg-indigo-50 px-1.5 py-0.5 text-indigo-600">{item.firstCategory}</span>
+            <span className="rounded-full bg-violet-300/10 px-2 py-0.5 text-violet-100 ring-1 ring-violet-300/20">{item.firstCategory}</span>
           )}
           {typeof item.likeCount === 'number' && <span>♥ {compactNumber(item.likeCount)}</span>}
           {typeof item.playCount === 'number' && <span>▶ {compactNumber(item.playCount)}</span>}
@@ -104,13 +104,13 @@ export function TopicCard({ item }: Props) {
           onClick={handleAnalyzeClick}
           disabled={analyze.isPending}
           aria-expanded={expanded}
-          className="inline-flex items-center rounded-md border border-indigo-200 bg-white px-2 py-1 text-xs font-medium text-indigo-700 transition-colors hover:bg-indigo-50 disabled:cursor-wait disabled:opacity-60"
+          className="inline-flex items-center rounded-full border border-cyan-300/25 bg-cyan-300/10 px-3 py-1 text-xs font-medium text-cyan-100 transition-colors hover:bg-cyan-300/20 disabled:cursor-wait disabled:opacity-60"
         >
           {analyze.isPending ? '分析中…' : (expanded ? '收起 ▴' : 'AI 分析 ▾')}
         </button>
         <Link
           href={cta}
-          className="inline-flex items-center rounded-md bg-indigo-600 px-2.5 py-1 text-xs font-medium text-white shadow-sm transition-colors hover:bg-indigo-700"
+          className="inline-flex items-center rounded-full bg-cyan-300 px-3 py-1 text-xs font-semibold text-slate-950 shadow-sm shadow-cyan-400/20 transition-colors hover:bg-cyan-200"
         >
           用这条 →
         </Link>
@@ -135,7 +135,7 @@ export function TopicCard({ item }: Props) {
             href={item.url}
             target="_blank"
             rel="noreferrer"
-            className="text-[11px] text-gray-400 underline-offset-2 hover:text-gray-600 hover:underline"
+            className="text-[11px] text-slate-500 underline-offset-2 hover:text-cyan-200 hover:underline"
           >
             查看原视频 ↗
           </a>
@@ -157,20 +157,20 @@ function AnalysisPanel(props: {
 
   if (loading && !result) {
     return (
-      <div className="mt-3 rounded-md border border-indigo-100 bg-indigo-50/50 px-3 py-2 text-xs text-indigo-700">
+      <div className="mt-3 rounded-xl border border-cyan-300/20 bg-cyan-300/10 px-3 py-2 text-xs text-cyan-100">
         正在分析… 通常需要 3-5 秒
       </div>
     );
   }
   if (errorMsg) {
     return (
-      <div className="mt-3 rounded-md border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-700">
+      <div className="mt-3 rounded-xl border border-rose-300/30 bg-rose-400/10 px-3 py-2 text-xs text-rose-100">
         <p className="font-medium">分析失败</p>
-        <p className="mt-1">{errorMsg}</p>
+        <p className="mt-1 text-rose-100/80">{errorMsg}</p>
         <button
           type="button"
           onClick={onRetry}
-          className="mt-2 text-rose-700 underline-offset-2 hover:underline"
+          className="mt-2 text-rose-100 underline-offset-2 hover:underline"
         >
           重试
         </button>
@@ -180,37 +180,37 @@ function AnalysisPanel(props: {
   if (!result) return null;
 
   return (
-    <div className="mt-3 space-y-3 rounded-md border border-indigo-100 bg-indigo-50/30 px-3 py-3">
+    <div className="mt-3 space-y-3 rounded-xl border border-white/10 bg-slate-950/45 px-3 py-3">
       <div>
-        <p className="text-[11px] font-semibold uppercase tracking-wide text-indigo-600">为什么火</p>
-        <ul className="mt-1 space-y-1 text-xs leading-5 text-gray-800">
+        <p className="text-[11px] font-semibold uppercase tracking-wide text-cyan-200">为什么火</p>
+        <ul className="mt-1 space-y-1 text-xs leading-5 text-slate-200">
           {result.whyItHit.map((s, i) => (
             <li key={i} className="flex">
-              <span className="mr-1 select-none text-indigo-400">•</span>
+              <span className="mr-1 select-none text-cyan-300">•</span>
               <span>{s}</span>
             </li>
           ))}
         </ul>
       </div>
       <div>
-        <p className="text-[11px] font-semibold uppercase tracking-wide text-indigo-600">
+        <p className="text-[11px] font-semibold uppercase tracking-wide text-cyan-200">
           怎么改造为你的内容
           {result.niche && (
-            <span className="ml-2 font-normal normal-case text-gray-500">
+            <span className="ml-2 font-normal normal-case text-slate-400">
               · 基于：{truncate(result.niche, 24)}
             </span>
           )}
         </p>
-        <ul className="mt-1 space-y-1 text-xs leading-5 text-gray-800">
+        <ul className="mt-1 space-y-1 text-xs leading-5 text-slate-200">
           {result.howToAdapt.map((s, i) => (
             <li key={i} className="flex">
-              <span className="mr-1 select-none text-indigo-400">•</span>
+              <span className="mr-1 select-none text-cyan-300">•</span>
               <span>{s}</span>
             </li>
           ))}
         </ul>
       </div>
-      <p className="border-t border-indigo-100 pt-2 text-[10px] text-gray-400">
+      <p className="border-t border-white/10 pt-2 text-[10px] text-slate-500">
         {result.cacheHit ? '缓存命中（24h 内同条免费）' : `${result.llmModel} · ${result.tokensUsed} tokens · 约 ¥${(result.costFen / 100).toFixed(3)}`}
       </p>
     </div>
