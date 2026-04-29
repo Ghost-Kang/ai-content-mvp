@@ -1,8 +1,8 @@
 # PROGRESS — AI 短视频内容工作流平台 (v3.0 PIVOT)
 
-**Last updated**: 2026-04-27 晚（W4 工程链全闭环 · 真 e2e ¥7.77 已验 · SRT 字幕修复落地）
-**Resume point**: 🟢 **W1-W4 全绿 · 真 17 帧 e2e ¥7.77 已验 · 合规链已闭环（CN LLM 路由 + SRT 字幕）· 单 invocation 730s 实测确认视频续跑是 prod 必需路径**。W2-04 step 3 实跑 5/5 success @ 720p · mean 1m27s · cost 由 token-based billing（¥15/M tokens）实测，非 D24 估算。**默认 480p / 60条/月 = 37% 毛利**，720p 留作付费升级档。`storage:probe` ✅ 已建 bucket。
-**Current phase**: 🟢 **W5 内测准备** — 7-week launch (06-12) on track。剩下都是用户判断 / 外部动作：(a) Vercel preview deploy + UI 走真用户路径 (b) 找第 5 个内测用户 (c) 把已验过的 zip 发给 P1-P4 试用。工程侧仅余 W4-01 真正收尾（topic_pushes 选题分桶 + dy T-4 fallback），但对 5 人内测低杠杆、建议 defer。
+**Last updated**: 2026-04-29 早（续跑 UX 根因修复 + cap 错误语义修复 + preview cap 调宽）
+**Resume point**: 🟢 **W1-W4 全绿 · 真 17 帧链路（preview）已稳定跑通并可下载 zip · 续跑红色闪烁已根因修复 · cap 类错误可读性已修**。单 invocation 730s 实测确认视频续跑是 prod 必需路径；worker 默认分帧续跑仍为 `WORKFLOW_VIDEO_MAX_FRAMES_PER_INVOCATION=2`。W2-04 step 3 实跑 5/5 success @ 720p · mean 1m27s · cost 由 token-based billing（¥15/M tokens）实测，非 D24 估算。**默认 480p / 60条/月 = 37% 毛利**，720p 留作付费升级档。`storage:probe` ✅ 已建 bucket。
+**Current phase**: 🟢 **W5 内测准备（收尾验收）** — 7-week launch (06-12) on track。当前 P0 以真实用户路径验收为主：preview 真 Seedance 5 帧验收 + PostHog v3 事件看板确认 + 文档对齐。工程侧 W4-01（topic_pushes 分桶 + dy T-4 fallback）继续 defer（对 5 人内测低杠杆）。
 
 **W4-01 / 新榜 真实情况（2026-04-26 probe 结论）**：
 - **Client 层（不改）**：
@@ -60,6 +60,14 @@
 - ✅ `VIDEO_CONTINUE_REQUIRED` 标记 → worker `route.ts` 抓到后用 `@upstash/qstash` Client 重新 enqueue 一次 worker
 - ✅ `wf:test:video:runner` case 7 实跑：5 帧分 3 次 invocation (2+2+1) 全绿
 - ✅ **真 17 帧 probe 实测验证必要性**：单 invocation 730.1s（655s 在视频节点）远超 300s Vercel cap
+
+**2026-04-29 稳定性与错误语义修复（4 commits，preview 实测闭环）**：
+- ✅ `6a50392`：worker route 在 continuation enqueue 成功后兜底 reset（run/step `failed -> pending`），先把红色失败窗口从 ~5s 缩到 ~250ms
+- ✅ `87dcaf4`（根因修复）：NodeRunner + Orchestrator catch 层直接识别 `VIDEO_CONTINUE_REQUIRED`，写 `pending` 而非 `failed`，并清 `errorMsg/completedAt`；SSE 不再看到 red flicker
+- ✅ `b19a212`：`LLM_FATAL` 内分支识别 `SPEND_CAP_EXCEEDED`，不再误报「认证失败/上下文过长/内容过滤」，改为「今日预算已用完 + UTC 重置/调参建议」
+- ✅ `d122391`：NodeRunner 保留 `SpendCapError` 类型（不再降级成 `UNKNOWN`），`friendlyFromNodeError` 细分 `video_cap_exceeded` / `cost_cap_exceeded`，展示实时数值与对应 env 建议（`WORKFLOW_MONTHLY_VIDEO_CAP_COUNT` / `WORKFLOW_MONTHLY_COST_CAP_CNY`）
+- ✅ Preview 验证结论：17 帧 run 最终 5 节点全 done，zip 下载成功；失败类报错已从“误导”升级为可操作指引
+- ✅ Preview 内测 cap 已调宽（仅 preview）：`LLM_TENANT_DAILY_CAP_CNY=20`、`LLM_DAILY_CAP_CNY=200`、`WORKFLOW_MONTHLY_VIDEO_CAP_COUNT=300`、`WORKFLOW_MONTHLY_COST_CAP_CNY=2000`
 
 **LLM router CN 合规修复（2026-04-27，commit `409dd89`）**：
 - ❌ Cursor commit `e3c1968` 把 `openai` 加进了 CN 的 fallback 链以缓解 Kimi 限流，触《数据安全法》/《个人信息保护法》（CN 用户数据不允许出境）
