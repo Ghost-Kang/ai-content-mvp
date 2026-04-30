@@ -202,19 +202,33 @@ async function handler(req: NextRequest): Promise<Response> {
 
 // Two flavours of the handler so local dev can hit it without a QStash
 // signature. We require BOTH signing keys to opt into verification — if
-// either is missing we assume "dev or test", and the route is open. This
-// is fail-CLOSED on production (Vercel injects both keys when
-// QStash is configured).
+// either is missing we assume "dev or test", and the route is open in
+// development.
+//
+// Production fail-closed (audit #2, 2026-04-30): if either signing key is
+// missing in production we 503 the request rather than running the
+// handler open. Without this, a one-time env misconfiguration silently
+// exposes the worker route — anyone who guesses a runId can dispatch
+// arbitrary workflows. Per-route opt-out exists for ops via the explicit
+// WORKFLOW_WORKER_SKIP_SIGNATURE=1 escape hatch.
 const verifiedHandler = verifySignatureAppRouter(handler);
 
 export async function POST(req: NextRequest): Promise<Response> {
-  const skipVerify = process.env.WORKFLOW_WORKER_SKIP_SIGNATURE === '1'
-    || !process.env.QSTASH_CURRENT_SIGNING_KEY
+  const explicitSkip = process.env.WORKFLOW_WORKER_SKIP_SIGNATURE === '1';
+  const missingKeys = !process.env.QSTASH_CURRENT_SIGNING_KEY
     || !process.env.QSTASH_NEXT_SIGNING_KEY;
 
-  if (skipVerify) {
+  if (process.env.NODE_ENV === 'production' && missingKeys && !explicitSkip) {
+    console.error('[workflow.worker] refusing to run — QStash signing keys missing in production');
+    return Response.json(
+      { error: 'WORKER_NOT_CONFIGURED', message: 'QStash signing keys are not set' },
+      { status: 503 },
+    );
+  }
+
+  if (explicitSkip || missingKeys) {
     if (process.env.NODE_ENV === 'production') {
-      console.warn('[workflow.worker] running WITHOUT signature verification in production');
+      console.warn('[workflow.worker] running WITHOUT signature verification (explicit opt-out)');
     }
     return handler(req);
   }

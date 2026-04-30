@@ -159,8 +159,21 @@ export class WorkflowOrchestrator {
       });
     }
 
+    // Two separate ledgers (audit #4, 2026-04-30):
+    //   - totalCostFen / totalVideoCount: WHAT TO DISPLAY on the run row.
+    //     Includes hydrated step costs so the user-facing total reflects
+    //     the lifetime of the run, not just this dispatch.
+    //   - newSpendFen / newSpendVideoCount: WHAT TO BUMP into monthly_usage.
+    //     ONLY accrues from steps actually executed in this dispatch. Each
+    //     executed step is bumped exactly once across the lifetime of the
+    //     run (the prior dispatch bumped its own executed steps already
+    //     via this same path, on success or failure). Without this split
+    //     a retried run double-counts every hydrated step's cost into the
+    //     monthly cap and the user falsely hits the cap N× faster.
     let totalCostFen = 0;
     let totalVideoCount = 0;
+    let newSpendFen = 0;
+    let newSpendVideoCount = 0;
     const nodeOutputs: Partial<Record<NodeType, unknown>> = {};
     const qualityIssues: Partial<Record<NodeType, string>> = {};
 
@@ -175,11 +188,9 @@ export class WorkflowOrchestrator {
           ctx.upstreamOutputs[node.descriptor.nodeType] = persisted.outputJson;
           nodeOutputs[node.descriptor.nodeType]         = persisted.outputJson;
         }
+        // Display total reflects full run lifetime; monthly bump does NOT
+        // re-accrue (the prior dispatch already bumped this step's cost).
         totalCostFen += persisted.costFen ?? 0;
-        // We don't have videoCount on the step row (it's only computed
-        // from the in-memory NodeResult), so we can't fold it here. The
-        // monthly_usage cap accounting was already bumped on the original
-        // run completion so this only affects the run-row display field.
         continue;
       }
 
@@ -190,8 +201,12 @@ export class WorkflowOrchestrator {
         nodeOutputs[node.descriptor.nodeType] = result.output;
         if (result.qualityIssue) qualityIssues[node.descriptor.nodeType] = result.qualityIssue;
 
-        totalCostFen   += result.costFen ?? 0;
-        totalVideoCount += result.videoCount ?? 0;
+        const costFen = result.costFen ?? 0;
+        const videoCount = result.videoCount ?? 0;
+        totalCostFen   += costFen;
+        totalVideoCount += videoCount;
+        newSpendFen        += costFen;
+        newSpendVideoCount += videoCount;
       } catch (e) {
         // SpendCapError raised mid-run by a heavy node (e.g. VideoGenNode in W2)
         const isCap = e instanceof SpendCapError;
@@ -248,10 +263,13 @@ export class WorkflowOrchestrator {
           })
           .where(eq(workflowRuns.id, runId));
 
-        // Even on partial failure: bump monthly_usage with whatever the user
-        // already burned. Otherwise the cost cap leaks (user retries past cap).
-        if (totalCostFen > 0 || totalVideoCount > 0) {
-          await this.bumpMonthlyUsage(ctx.tenantId, ctx.userId, totalCostFen, totalVideoCount);
+        // Even on partial failure: bump monthly_usage with the spend that
+        // actually happened in THIS dispatch. Hydrated step costs are
+        // excluded — the dispatch that originally executed them already
+        // bumped via the same path. See the totalCostFen/newSpendFen
+        // comment at the top of the loop for the full rationale.
+        if (newSpendFen > 0 || newSpendVideoCount > 0) {
+          await this.bumpMonthlyUsage(ctx.tenantId, ctx.userId, newSpendFen, newSpendVideoCount);
         }
 
         if (isCap) {
@@ -310,7 +328,11 @@ export class WorkflowOrchestrator {
       })
       .where(eq(workflowRuns.id, runId));
 
-    await this.bumpMonthlyUsage(ctx.tenantId, ctx.userId, totalCostFen, totalVideoCount);
+    // Bump only the new spend from THIS dispatch (audit #4). Hydrated
+    // step costs were bumped by the dispatch that first executed them.
+    if (newSpendFen > 0 || newSpendVideoCount > 0) {
+      await this.bumpMonthlyUsage(ctx.tenantId, ctx.userId, newSpendFen, newSpendVideoCount);
+    }
 
     safeFire(() =>
       fireWorkflowRunCompleted(ctx.userId, {

@@ -19,11 +19,16 @@ const ROUTING_TABLE: Record<
   LLMRegion,
   Record<LLMRequest['intent'], ProviderName[]>
 > = {
+  // CN — kimi primary, qwen + ernie as domestic fallback (audit #5, 2026-04-30).
+  // Kimi rate-limit / outage used to mean 100% CN failures; the fallback chain
+  // means a single provider hiccup degrades to slower-but-working domestic
+  // providers. assertCnRoutingCompliance below guarantees no foreign provider
+  // ever sneaks in here.
   CN: {
-    strategy:      ['kimi'],
-    draft:         ['kimi'],
-    channel_adapt: ['kimi'],
-    diff_annotate: ['kimi'],
+    strategy:      ['kimi', 'qwen', 'ernie'],
+    draft:         ['kimi', 'qwen', 'ernie'],
+    channel_adapt: ['kimi', 'qwen', 'ernie'],
+    diff_annotate: ['kimi', 'qwen', 'ernie'],
   },
   INTL: {
     strategy:      ['kimi', 'openai'],
