@@ -20,7 +20,7 @@ export default function RunsPage() {
       <TechHeader backHref="/dashboard" backLabel="控制台" right={<UserButton afterSignOutUrl="/" />} />
 
       <main className="mx-auto max-w-6xl px-6 py-10">
-        <div className="mb-6 flex items-end justify-between">
+        <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <TechBadge tone="amber">Run Console</TechBadge>
             <h1 className="mt-4 text-4xl font-black tracking-tight text-white">工作流运行</h1>
@@ -28,7 +28,7 @@ export default function RunsPage() {
               从主题到剪映 .draft 包，全流程 5 个节点。每 5 秒自动刷新。
             </p>
           </div>
-          <TechButton href="/runs/new">
+          <TechButton href="/runs/new" className="w-full sm:w-auto">
             新建工作流
           </TechButton>
         </div>

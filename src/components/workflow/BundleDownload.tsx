@@ -78,8 +78,8 @@ export function BundleDownload({ bundle }: BundleDownloadProps) {
         下载 .zip ({formatBytes(bundle.bytes)})
       </a>
 
-      <div className="flex items-center gap-2 text-xs text-slate-400">
-        <span className="truncate font-mono">{bundle.filename}</span>
+      <div className="flex min-w-0 items-center gap-2 text-xs text-slate-400">
+        <span className="min-w-0 truncate font-mono">{bundle.filename}</span>
         <span className="shrink-0">· {expiryHint(bundle.expiresAt)}</span>
       </div>
 

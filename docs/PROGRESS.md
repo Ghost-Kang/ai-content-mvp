@@ -1,6 +1,6 @@
 # PROGRESS — AI 短视频内容工作流平台 (v3.0 PIVOT)
 
-**Last updated**: 2026-04-29 晚（UI 科技感改版 + dashboard 新用户引导 + 移动端 QA + 登录跳转 dashboard）
+**Last updated**: 2026-04-30 凌晨（真 17 帧回归 + 移动端 polish + build/typecheck/lint 全绿）
 **Resume point**: 🟢 **当前稳定基线：`62993b9` · preview `https://ai-content-5guiqdyje-ai-content-mvp.vercel.app`**。W1-W4 全绿；真 17 帧链路（preview）已稳定跑通并可下载 zip；视频续跑红色闪烁已根因修复；cap 类错误可读性已修；视频节点已有进度/ETA/卡住提示；Seedance 并发渲染已接入；登录/注册后直达 `/dashboard`；dashboard 已整合 `/topics`、`/runs/new`、`/create`、`/runs` 并增加 3 步新用户引导。单 invocation 730s 实测确认视频续跑是 prod 必需路径；worker 默认分帧续跑仍为 `WORKFLOW_VIDEO_MAX_FRAMES_PER_INVOCATION=2`。**默认 480p / 60条/月 = 37% 毛利**，720p 留作付费升级档。`storage:probe` ✅ 已建 bucket。
 **Current phase**: 🟢 **W5 内测准备（收尾验收）** — 7-week launch (06-12) on track。当前 P0 以真实用户路径验收为主：preview 完整回归 + 移动端视觉 QA + PostHog v3 事件看板确认。工程侧 W4-01（topic_pushes 分桶 + dy T-4 fallback）继续 defer（对 5 人内测低杠杆）。
 
@@ -76,6 +76,8 @@
 - ✅ `84d882c`：Clerk sign-in / sign-up 组件级 `forceRedirectUrl="/dashboard"`，登录/注册成功直接进 dashboard；不再落到 legacy `/create`。
 - ✅ `da5238a`：dashboard 加「第一次使用，照这 3 步走」引导：热门选题 → 启动工作流 → 下载剪映包。
 - ✅ `62993b9`：移动端 QA 小修：`TechHeader` 在 <640px 隐藏品牌文字，避免 320px 顶部挤爆；`NewRunForm` 手机端费用提示 + CTA 改上下排列，按钮全宽。
+- ✅ 2026-04-30 凌晨 QA：`/runs` 手机端页头改上下排列 + CTA 小屏全宽；导出 zip 长文件名加 `min-w-0 truncate`，避免移动端横向撑开。
+- ✅ 2026-04-30 真 17 帧回归：`PROBE_VIDEO_MAX_FRAMES=17 pnpm wf:probe:full` 跑通 5 节点全链路，17 段真视频 + export 全 done；总耗时 662.2s、成本 ¥8.05。结论：单 invocation 仍超 300s（+362.2s），线上必须依赖 worker continuation。
 - ✅ 当前 preview：`https://ai-content-5guiqdyje-ai-content-mvp.vercel.app`
 - ⚠️ 注意：Vercel CLI 在同步 preview env 时曾卡住/异常；preview 登录跳转由代码层 `forceRedirectUrl="/dashboard"` 保障，不依赖 `NEXT_PUBLIC_CLERK_AFTER_SIGN_*`。Production 的 after sign-in/up env 已同步为 `/dashboard`（可读值验证通过）。
 
@@ -87,7 +89,7 @@
 - [x] 视频生成节点：进度百分比 / active frames / ETA / 卡住提示（用户已验证满足预期）
 - [x] 移动端显性风险修复：header 小屏不挤；`/runs/new` CTA 小屏不挤
 - [ ] 移动端人工复查（建议 360px / 390px / 430px）：dashboard、topics、runs/new、workflow detail、export 下载按钮
-- [ ] 真 17 帧回归（可选，成本约 ¥8-10）：确认并发=3 + progress/ETA + continuation + export 在最新 UI 基线仍稳定
+- [x] 真 17 帧回归（成本 ¥8.05）：17 段视频 + export 全 done；总耗时 662.2s，单 invocation 仍超 300s，线上必须走 continuation
 - [ ] PostHog v3 事件看板确认：登录、选题、工作流启动、节点完成、导出下载事件是否仍可读
 
 **LLM router CN 合规修复（2026-04-27，commit `409dd89`）**：
