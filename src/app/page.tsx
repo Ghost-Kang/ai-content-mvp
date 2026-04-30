@@ -16,18 +16,18 @@ export default async function Home() {
       <LandingHeader isSignedIn={isSignedIn} />
 
       {/* ─── Hero · 左右并排：金句+CTA / 5 步动画 ─────────────────────────── */}
-      <section className="mx-auto grid min-h-[calc(100vh-4rem)] max-w-7xl items-center gap-10 px-4 py-10 sm:px-6 lg:grid-cols-[1.1fr_0.9fr] lg:gap-14 lg:py-16">
+      <section className="mx-auto grid min-h-[calc(100vh-4rem)] max-w-7xl items-center gap-10 px-4 py-10 sm:px-6 lg:grid-cols-2 lg:gap-12 lg:py-16">
         {/* Left column · 主标题 + 三行金句 + CTA */}
         <div className="flex min-w-0 flex-col">
           <TechBadge tone="cyan">AI 短视频工作流 · Seed 内测</TechBadge>
 
           {/* 主标题 — 中等字号、白色、定位用 */}
-          <h2 className="mt-5 text-lg font-semibold text-slate-200 sm:text-xl lg:text-2xl">
+          <h2 className="mt-5 text-base font-semibold text-slate-200 sm:text-lg lg:text-xl">
             用数据驱动的 AI 视频创作平台
           </h2>
 
           {/* 三行金句 — 大字、节奏分明、最后一行带跳动 ❤️ */}
-          <p className="mt-5 text-4xl font-black leading-[1.1] tracking-tight text-white sm:text-5xl lg:text-6xl">
+          <p className="mt-5 text-3xl font-black leading-[1.1] tracking-tight text-white sm:text-4xl lg:text-5xl xl:text-[3.7rem]">
             <span className="block">别拍脑袋，</span>
             <span className="block">
               <span className="bg-gradient-to-r from-cyan-200 via-fuchsia-200 to-emerald-200 bg-clip-text text-transparent">
@@ -42,13 +42,13 @@ export default async function Home() {
             </span>
           </p>
 
-          <p className="mt-7 max-w-xl text-base leading-7 text-slate-300 sm:text-lg sm:leading-8">
+          <p className="mt-6 max-w-xl text-base leading-7 text-slate-300 sm:text-lg sm:leading-8">
             告别在 ChatGPT、CapCut、Midjourney 之间来回复制。
             输入主题 → <span className="font-semibold text-white">12 分钟</span> 拿到剪映可直接发布的素材包。
           </p>
 
           {/* CTAs — 显眼，glow */}
-          <div className="mt-9 flex flex-col items-stretch gap-3 sm:flex-row sm:items-center">
+          <div className="mt-8 flex flex-col items-stretch gap-3 sm:flex-row sm:items-center">
             {isSignedIn ? (
               <TechButton href="/dashboard" variant="primary" size="lg" glow className="sm:px-10">
                 进入创作控制台 →
@@ -66,7 +66,7 @@ export default async function Home() {
           </div>
 
           {/* Trust strip */}
-          <div className="mt-7 flex flex-wrap items-center gap-x-5 gap-y-2 text-xs text-slate-400">
+          <div className="mt-6 flex flex-wrap items-center gap-x-5 gap-y-2 text-xs text-slate-400">
             <span className="inline-flex items-center gap-1.5">
               <Dot /> 免信用卡
             </span>
@@ -80,7 +80,7 @@ export default async function Home() {
         </div>
 
         {/* Right column · 5 步使用流程动画（紧凑版） */}
-        <div className="min-w-0">
+        <div className="min-w-0 lg:pl-2">
           <PipelineAnimation />
         </div>
       </section>

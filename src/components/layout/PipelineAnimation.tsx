@@ -1,4 +1,4 @@
-// 5-step pipeline — compact vertical timeline.
+// 5-step pipeline — vertical timeline for the landing hero.
 //
 // Each step is a slim horizontal row (number + icon + title + body).
 // Sequential pulse via animation-delay; CSS only.
@@ -41,28 +41,27 @@ const STAGGER_MS = 600;
 const CYCLE_MS = STAGGER_MS * STEPS.length + 600;
 
 /**
- * Compact vertical 5-step timeline — designed for the right column of a
- * side-by-side hero, not as a section on its own.
+ * Vertical 5-step timeline — designed to balance the hero headline.
  */
 export function PipelineAnimation() {
   return (
     <div className="relative">
       {/* Background blur halo */}
-      <div className="absolute -inset-6 rounded-[2rem] bg-gradient-to-br from-cyan-500/15 via-fuchsia-500/10 to-emerald-500/10 blur-3xl" />
+      <div className="absolute -inset-8 rounded-[2.5rem] bg-gradient-to-br from-cyan-500/20 via-fuchsia-500/12 to-emerald-500/15 blur-3xl" />
 
-      <div className="relative rounded-2xl border border-white/10 bg-slate-950/70 p-4 shadow-2xl shadow-cyan-950/40 backdrop-blur-xl">
+      <div className="relative rounded-[2rem] border border-white/10 bg-slate-950/70 p-5 shadow-2xl shadow-cyan-950/40 backdrop-blur-xl sm:p-6">
         {/* Header strip */}
-        <div className="mb-3 flex items-center justify-between gap-2 border-b border-white/5 pb-3">
+        <div className="mb-4 flex items-center justify-between gap-2 border-b border-white/5 pb-4">
           <div className="flex items-center gap-2">
             <span className="relative flex h-1.5 w-1.5">
               <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
               <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-emerald-400" />
             </span>
-            <p className="text-[10px] font-semibold uppercase tracking-[0.32em] text-cyan-200">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.32em] text-cyan-200">
               Live Pipeline
             </p>
           </div>
-          <span className="text-[10px] font-mono text-slate-400">
+          <span className="text-[11px] font-mono text-slate-400">
             ~12 min · ¥7-8 / run
           </span>
         </div>
@@ -86,7 +85,7 @@ export function PipelineAnimation() {
 function StepRow({ step, index }: { step: Step; index: number }) {
   const delay = `${index * STAGGER_MS}ms`;
   return (
-    <div className="group relative flex items-center gap-3 rounded-xl px-2 py-2 transition hover:bg-white/[0.04]">
+    <div className="group relative flex items-center gap-4 rounded-2xl px-3 py-3 transition hover:bg-white/[0.04]">
       {/* Pulsing aura — subtle, fires once per cycle staggered */}
       <span
         aria-hidden
@@ -100,22 +99,22 @@ function StepRow({ step, index }: { step: Step; index: number }) {
 
       {/* Step number badge — compact, accent-ring */}
       <span
-        className={`relative grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-slate-900 font-mono text-[11px] font-black ring-1 ${ACCENT_RING[step.accent]}`}
+        className={`relative grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-slate-900 font-mono text-xs font-black ring-1 ${ACCENT_RING[step.accent]}`}
       >
         {step.n}
       </span>
 
       {/* Icon chip */}
       <span
-        className={`relative grid h-8 w-8 shrink-0 place-items-center rounded-lg ring-1 ${ACCENT_FILL[step.accent]} ${ACCENT_RING[step.accent]}`}
+        className={`relative grid h-10 w-10 shrink-0 place-items-center rounded-xl ring-1 ${ACCENT_FILL[step.accent]} ${ACCENT_RING[step.accent]}`}
       >
         {step.icon}
       </span>
 
       {/* Title + 1-line body */}
       <div className="relative min-w-0 flex-1">
-        <h4 className="text-sm font-bold text-white">{step.title}</h4>
-        <p className="truncate text-[11px] leading-4 text-slate-400">{step.body}</p>
+        <h4 className="text-base font-bold text-white">{step.title}</h4>
+        <p className="mt-0.5 text-xs leading-5 text-slate-400">{step.body}</p>
       </div>
     </div>
   );
@@ -126,7 +125,7 @@ function Connector({ index }: { index: number }) {
   return (
     <span
       aria-hidden
-      className="pointer-events-none relative ml-[1.45rem] block h-3 w-[2px] overflow-hidden"
+      className="pointer-events-none relative ml-[1.75rem] block h-4 w-[2px] overflow-hidden"
     >
       <span className="absolute inset-0 bg-white/15" />
       <span
