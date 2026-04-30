@@ -1,8 +1,8 @@
 # PROGRESS — AI 短视频内容工作流平台 (v3.0 PIVOT)
 
-**Last updated**: 2026-04-29 早（续跑 UX 根因修复 + cap 错误语义修复 + preview cap 调宽）
-**Resume point**: 🟢 **W1-W4 全绿 · 真 17 帧链路（preview）已稳定跑通并可下载 zip · 续跑红色闪烁已根因修复 · cap 类错误可读性已修**。单 invocation 730s 实测确认视频续跑是 prod 必需路径；worker 默认分帧续跑仍为 `WORKFLOW_VIDEO_MAX_FRAMES_PER_INVOCATION=2`。W2-04 step 3 实跑 5/5 success @ 720p · mean 1m27s · cost 由 token-based billing（¥15/M tokens）实测，非 D24 估算。**默认 480p / 60条/月 = 37% 毛利**，720p 留作付费升级档。`storage:probe` ✅ 已建 bucket。
-**Current phase**: 🟢 **W5 内测准备（收尾验收）** — 7-week launch (06-12) on track。当前 P0 以真实用户路径验收为主：preview 真 Seedance 5 帧验收 + PostHog v3 事件看板确认 + 文档对齐。工程侧 W4-01（topic_pushes 分桶 + dy T-4 fallback）继续 defer（对 5 人内测低杠杆）。
+**Last updated**: 2026-04-29 晚（UI 科技感改版 + dashboard 新用户引导 + 移动端 QA + 登录跳转 dashboard）
+**Resume point**: 🟢 **当前稳定基线：`62993b9` · preview `https://ai-content-5guiqdyje-ai-content-mvp.vercel.app`**。W1-W4 全绿；真 17 帧链路（preview）已稳定跑通并可下载 zip；视频续跑红色闪烁已根因修复；cap 类错误可读性已修；视频节点已有进度/ETA/卡住提示；Seedance 并发渲染已接入；登录/注册后直达 `/dashboard`；dashboard 已整合 `/topics`、`/runs/new`、`/create`、`/runs` 并增加 3 步新用户引导。单 invocation 730s 实测确认视频续跑是 prod 必需路径；worker 默认分帧续跑仍为 `WORKFLOW_VIDEO_MAX_FRAMES_PER_INVOCATION=2`。**默认 480p / 60条/月 = 37% 毛利**，720p 留作付费升级档。`storage:probe` ✅ 已建 bucket。
+**Current phase**: 🟢 **W5 内测准备（收尾验收）** — 7-week launch (06-12) on track。当前 P0 以真实用户路径验收为主：preview 完整回归 + 移动端视觉 QA + PostHog v3 事件看板确认。工程侧 W4-01（topic_pushes 分桶 + dy T-4 fallback）继续 defer（对 5 人内测低杠杆）。
 
 **W4-01 / 新榜 真实情况（2026-04-26 probe 结论）**：
 - **Client 层（不改）**：
@@ -68,6 +68,27 @@
 - ✅ `d122391`：NodeRunner 保留 `SpendCapError` 类型（不再降级成 `UNKNOWN`），`friendlyFromNodeError` 细分 `video_cap_exceeded` / `cost_cap_exceeded`，展示实时数值与对应 env 建议（`WORKFLOW_MONTHLY_VIDEO_CAP_COUNT` / `WORKFLOW_MONTHLY_COST_CAP_CNY`）
 - ✅ Preview 验证结论：17 帧 run 最终 5 节点全 done，zip 下载成功；失败类报错已从“误导”升级为可操作指引
 - ✅ Preview 内测 cap 已调宽（仅 preview）：`LLM_TENANT_DAILY_CAP_CNY=20`、`LLM_DAILY_CAP_CNY=200`、`WORKFLOW_MONTHLY_VIDEO_CAP_COUNT=300`、`WORKFLOW_MONTHLY_COST_CAP_CNY=2000`
+
+**2026-04-29 UX / UI / 移动端稳定基线（当前 commit `62993b9`）**：
+- ✅ `e0d97ca`：视频节点同 invocation 内并发渲染，新增 `WORKFLOW_VIDEO_CONCURRENCY`（preview=3），17 帧预期从 ~9min 降到 ~3.5min；cap preflight 改为 batch-sum，避免并发下集体破 cap。
+- ✅ `205718f`：视频节点写 transient progress checkpoint（`completedFrames / totalFrames / activeFrameIndexes / concurrency / updatedAt`），前端显示百分比、正在生成第几段、预计剩余时间；超过预期提示「卡在 Seedance 生成/轮询结果」。最终 `done` 输出会清掉临时 progress，不污染 export。
+- ✅ `e287532`：前端视觉统一成科技感 / 年轻化 dark glass system；新增共享 `src/components/layout/TechPage.tsx`；`/`、`/dashboard`、`/topics`、`/runs/new`、`/create`、`/runs`、`/runs/[runId]` 同视觉语言。
+- ✅ `84d882c`：Clerk sign-in / sign-up 组件级 `forceRedirectUrl="/dashboard"`，登录/注册成功直接进 dashboard；不再落到 legacy `/create`。
+- ✅ `da5238a`：dashboard 加「第一次使用，照这 3 步走」引导：热门选题 → 启动工作流 → 下载剪映包。
+- ✅ `62993b9`：移动端 QA 小修：`TechHeader` 在 <640px 隐藏品牌文字，避免 320px 顶部挤爆；`NewRunForm` 手机端费用提示 + CTA 改上下排列，按钮全宽。
+- ✅ 当前 preview：`https://ai-content-5guiqdyje-ai-content-mvp.vercel.app`
+- ⚠️ 注意：Vercel CLI 在同步 preview env 时曾卡住/异常；preview 登录跳转由代码层 `forceRedirectUrl="/dashboard"` 保障，不依赖 `NEXT_PUBLIC_CLERK_AFTER_SIGN_*`。Production 的 after sign-in/up env 已同步为 `/dashboard`（可读值验证通过）。
+
+**发布前 QA checklist（当前 UI 基线）**：
+- [x] 登录/注册 → `/dashboard`（代码层强制 redirect）
+- [x] Dashboard 聚合入口：`/topics`、`/runs/new`、`/create`、`/runs`
+- [x] Dashboard 新用户 3 步引导：选题 → 启动工作流 → 下载包
+- [x] 主链路 E2E：`/topics` → 「用这条」→ `/runs/new` → workflow → 视频生成 → export zip 下载（用户已验证）
+- [x] 视频生成节点：进度百分比 / active frames / ETA / 卡住提示（用户已验证满足预期）
+- [x] 移动端显性风险修复：header 小屏不挤；`/runs/new` CTA 小屏不挤
+- [ ] 移动端人工复查（建议 360px / 390px / 430px）：dashboard、topics、runs/new、workflow detail、export 下载按钮
+- [ ] 真 17 帧回归（可选，成本约 ¥8-10）：确认并发=3 + progress/ETA + continuation + export 在最新 UI 基线仍稳定
+- [ ] PostHog v3 事件看板确认：登录、选题、工作流启动、节点完成、导出下载事件是否仍可读
 
 **LLM router CN 合规修复（2026-04-27，commit `409dd89`）**：
 - ❌ Cursor commit `e3c1968` 把 `openai` 加进了 CN 的 fallback 链以缓解 Kimi 限流，触《数据安全法》/《个人信息保护法》（CN 用户数据不允许出境）
