@@ -83,6 +83,21 @@ body {
   50%      { filter: drop-shadow(0 0 14px rgba(103, 232, 249, 0.55)); }
 }
 
+/* Real-heart "lub-dub" pattern: quick double-thump, pause, repeat. */
+@keyframes heartbeat {
+  0%, 100% { transform: scale(1); }
+  14%      { transform: scale(1.28); }
+  28%      { transform: scale(1);    }
+  42%      { transform: scale(1.20); }
+  70%      { transform: scale(1);    }
+}
+
+@keyframes heart-glow {
+  0%, 100% { filter: drop-shadow(0 0 6px rgba(244, 114, 182, 0.35)); }
+  14%      { filter: drop-shadow(0 0 18px rgba(244, 114, 182, 0.85)); }
+  42%      { filter: drop-shadow(0 0 14px rgba(244, 114, 182, 0.7));  }
+}
+
 @property --aurora-angle {
   syntax: "<angle>";
   initial-value: 0deg;
