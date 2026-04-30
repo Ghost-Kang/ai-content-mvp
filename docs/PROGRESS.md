@@ -1,8 +1,9 @@
 # PROGRESS — AI 短视频内容工作流平台 (v3.0 PIVOT)
 
-**Last updated**: 2026-04-30 凌晨（真 17 帧回归 + 移动端 polish + build/typecheck/lint 全绿）
-**Resume point**: 🟢 **当前稳定基线：`62993b9` · preview `https://ai-content-5guiqdyje-ai-content-mvp.vercel.app`**。W1-W4 全绿；真 17 帧链路（preview）已稳定跑通并可下载 zip；视频续跑红色闪烁已根因修复；cap 类错误可读性已修；视频节点已有进度/ETA/卡住提示；Seedance 并发渲染已接入；登录/注册后直达 `/dashboard`；dashboard 已整合 `/topics`、`/runs/new`、`/create`、`/runs` 并增加 3 步新用户引导。单 invocation 730s 实测确认视频续跑是 prod 必需路径；worker 默认分帧续跑仍为 `WORKFLOW_VIDEO_MAX_FRAMES_PER_INVOCATION=2`。**默认 480p / 60条/月 = 37% 毛利**，720p 留作付费升级档。`storage:probe` ✅ 已建 bucket。
-**Current phase**: 🟢 **W5 内测准备（收尾验收）** — 7-week launch (06-12) on track。当前 P0 以真实用户路径验收为主：preview 完整回归 + 移动端视觉 QA + PostHog v3 事件看板确认。工程侧 W4-01（topic_pushes 分桶 + dy T-4 fallback）继续 defer（对 5 人内测低杠杆）。
+**Last updated**: 2026-04-30 晚（落地页动画 + 全栈深色统一 + 项目级审计 + 测试基础设施 + 工程链全绿）
+**Resume point**: 🟢 **当前基线：`ca5896e` · main 已 push origin**。所有工程链 done；UI 全部统一到深色 tech 主题；落地页有 5 节点 SVG pipeline 动画 + 显性登录注册；项目级审计 14 项发现已修 6（doc 在 `docs/AUDIT-2026-04-30.md`）；vitest 接通 + 41 个核心单测全绿。
+**Launch target**: **2026-05-15 Friday**（per LAUNCH_CHECKLIST，16 天后；不是 6-week 计划）
+**Current phase**: 🟢 **W5 launch 收尾** — 工程零阻塞，剩 4 件：production deploy + healthz、3 seed user 邀请发出、CAC 10 样本人工核验、PIPL 文案补。RLS 真启用准备已就绪，等运维在 Supabase 跑迁移（job `bd1d731a` + 文档 2026-05-14 复审）。
 
 **W4-01 / 新榜 真实情况（2026-04-26 probe 结论）**：
 - **Client 层（不改）**：
@@ -80,6 +81,24 @@
 - ✅ 2026-04-30 真 17 帧回归：`PROBE_VIDEO_MAX_FRAMES=17 pnpm wf:probe:full` 跑通 5 节点全链路，17 段真视频 + export 全 done；总耗时 662.2s、成本 ¥8.05。结论：单 invocation 仍超 300s（+362.2s），线上必须依赖 worker continuation。
 - ✅ 当前 preview：`https://ai-content-5guiqdyje-ai-content-mvp.vercel.app`
 - ⚠️ 注意：Vercel CLI 在同步 preview env 时曾卡住/异常；preview 登录跳转由代码层 `forceRedirectUrl="/dashboard"` 保障，不依赖 `NEXT_PUBLIC_CLERK_AFTER_SIGN_*`。Production 的 after sign-in/up env 已同步为 `/dashboard`（可读值验证通过）。
+
+**2026-04-29 晚 / 2026-04-30 全栈深色统一 + 落地页动画（commit `2a1ab85`）**：
+- ✅ 全部页面切到 dark tech 主题：之前 admin / sign-in / sign-up / WorkflowCanvas header / NodeCard / StatusBadge / 多个 error block 还残留浅色，造成跳转撞色
+- ✅ 落地页重写：sticky 顶栏显性登录注册按钮（gradient + shimmer）、5 节点 SVG pipeline 动画（`PipelineAnimation.tsx`）、价值主张三卡（含图标）、60 秒上手三步骤、二级 CTA
+- ✅ 新增 design tokens：`globals.css` `aurora-spin / shine / pipeline-flow / node-glow / pulse-soft / float-slow` keyframes；修了一个隐性 bug —— body `font-family: Arial` 把 layout 加载的 Geist 字体覆盖掉
+- ✅ TopicCard retry 逻辑 bug 修复：原来 `onRetry` 调 `handleAnalyzeClick` 会先 toggle expanded → 收起面板，现在拆 `runAnalysis()` 不再 toggle
+- ✅ NewRunForm 包 Suspense 解决 `useSearchParams` Next 14 警告
+- ✅ TechPageShell 修了滚动 bug：`overflow-hidden` → `overflow-x-hidden` + 装饰背板 `absolute` → `fixed`，长页面终于能滚
+
+**2026-04-30 项目级审计 + 修复（commits `8aa5958` / `b29eb31` / `ca5896e`）**：
+- ✅ 完整审计文档 `docs/AUDIT-2026-04-30.md` 14 项发现按 🔴🟠🟡🟢 分级；本次修了 6 项（#2 / #3 / #4 / #5 / #6 / #10）
+- ✅ #2 worker 路由生产 fail-closed：`/api/workflow/run` 在 QStash signing key 缺失时生产环境 503，不再 console.warn 后放行
+- ✅ #3 PostHog CN 出境合规：CN region 事件强制走 `.cn / .aliyuncs.com / tencentcs.com` 白名单 host；`topic` / `errorMsg` 自动脱敏成 `redacted:N:hash`（保留 funnel grouping 但不出明文）
+- ✅ #4 月度用量重复累加修复：orchestrator 双账本（display total 包含 hydrated，monthly bump 只算本次 dispatch 新增），retry 不再让 `monthly_usage` 1.5×–2× 失真
+- ✅ #5 CN LLM fallback：CN 链 `['kimi']` → `['kimi', 'qwen', 'ernie']`；assertCnRoutingCompliance 仍守 foreign provider
+- ✅ #6 连接池：`postgres()` 默认 `max:1`（serverless 推荐），`DB_POOL_MAX` 可覆盖
+- ✅ #10 测试基础设施：装 vitest + `pnpm test` 接通 + 41 个核心单测（is-admin / cascade-rules / router 合规 / analytics 脱敏 / spend-cap）
+- 🟡 #1 RLS 真启用：准备工作 done（`drizzle/0004_rls_app_role.sql` + `withTenant` helper + `docs/RLS-CUTOVER.md`），等运维在 Supabase 跑 GRANT/REVOKE + 切 `DATABASE_URL_APP`；session-scheduled job `bd1d731a` 排到 2026-05-14 复审 + 文档头部 pin 双兜底
 
 **发布前 QA checklist（当前 UI 基线）**：
 - [x] 登录/注册 → `/dashboard`（代码层强制 redirect）
