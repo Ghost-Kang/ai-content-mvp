@@ -38,21 +38,21 @@ export function TechHeader({
 }) {
   return (
     <header className="border-b border-white/10 bg-slate-950/55 backdrop-blur-xl">
-      <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4">
-        <div className="flex items-center gap-4">
+      <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-4 py-4 sm:px-6">
+        <div className="flex min-w-0 items-center gap-3 sm:gap-4">
           {backHref ? (
-            <Link href={backHref} className="text-sm font-medium text-slate-300 transition hover:text-cyan-200">
+            <Link href={backHref} className="shrink-0 text-sm font-medium text-slate-300 transition hover:text-cyan-200">
               ← {backLabel ?? '返回'}
             </Link>
           ) : null}
-          <Link href="/dashboard" className="group inline-flex items-center gap-2">
+          <Link href="/dashboard" className="group inline-flex min-w-0 items-center gap-2">
             <span className="grid h-8 w-8 place-items-center rounded-xl bg-cyan-400/10 text-sm font-black text-cyan-200 ring-1 ring-cyan-300/25 transition group-hover:bg-cyan-400/20">
               AI
             </span>
-            <span className="text-sm font-semibold tracking-wide text-white">{brand}</span>
+            <span className="hidden truncate text-sm font-semibold tracking-wide text-white sm:inline">{brand}</span>
           </Link>
         </div>
-        {right}
+        <div className="shrink-0">{right}</div>
       </div>
     </header>
   );
