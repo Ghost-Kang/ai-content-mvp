@@ -78,6 +78,51 @@ export default async function DashboardPage() {
             />
           ) : null}
         </section>
+
+        <section className="mt-10">
+          <TechCard className="overflow-hidden">
+            <div className="grid gap-0 lg:grid-cols-[0.85fr_1.15fr]">
+              <div className="border-b border-white/10 p-6 lg:border-b-0 lg:border-r">
+                <TechBadge tone="emerald">First Run Guide</TechBadge>
+                <h2 className="mt-4 text-2xl font-black tracking-tight text-white">
+                  第一次使用，照这 3 步走
+                </h2>
+                <p className="mt-3 text-sm leading-6 text-slate-300">
+                  不用先理解所有功能。先从热点池里拿一个真实话题，启动完整工作流，再下载剪映素材包看成品。
+                </p>
+                <Link
+                  href="/topics"
+                  className="mt-6 inline-flex rounded-2xl bg-cyan-300 px-5 py-3 text-sm font-semibold text-slate-950 shadow-lg shadow-cyan-400/20 transition hover:bg-cyan-200"
+                >
+                  从热门选题开始 →
+                </Link>
+              </div>
+              <div className="grid gap-3 p-6 md:grid-cols-3">
+                <GuideStep
+                  index="01"
+                  title="先看热门选题"
+                  body="进入 Topic Radar，看 4 平台当日热点；点 AI 分析判断为什么火。"
+                  href="/topics"
+                  cta="去选题"
+                />
+                <GuideStep
+                  index="02"
+                  title="选一条启动工作流"
+                  body="点击「用这条」后会预填主题；确认文案后启动 5 节点视频流程。"
+                  href="/runs/new"
+                  cta="新建工作流"
+                />
+                <GuideStep
+                  index="03"
+                  title="下载剪映包"
+                  body="在运行台跟踪视频生成进度，完成后下载 zip 和素材包。"
+                  href="/runs"
+                  cta="看运行台"
+                />
+              </div>
+            </div>
+          </TechCard>
+        </section>
       </main>
     </TechPageShell>
   );
@@ -116,6 +161,31 @@ function LaunchCard({
           {cta} →
         </p>
       </TechCard>
+    </Link>
+  );
+}
+
+function GuideStep({
+  index,
+  title,
+  body,
+  href,
+  cta,
+}: {
+  index: string;
+  title: string;
+  body: string;
+  href: string;
+  cta: string;
+}) {
+  return (
+    <Link href={href} className="group rounded-2xl border border-white/10 bg-slate-950/45 p-4 transition hover:border-cyan-300/35 hover:bg-white/[0.06]">
+      <p className="text-xs font-semibold text-cyan-200">{index}</p>
+      <h3 className="mt-3 text-base font-bold text-white">{title}</h3>
+      <p className="mt-2 min-h-16 text-sm leading-6 text-slate-400">{body}</p>
+      <p className="mt-4 text-sm font-semibold text-cyan-200 transition group-hover:translate-x-1">
+        {cta} →
+      </p>
     </Link>
   );
 }
