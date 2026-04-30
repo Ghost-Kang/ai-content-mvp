@@ -125,7 +125,7 @@ export function WorkflowCanvas({ runId, pauseAutoRefresh = false }: WorkflowCanv
 
   if (query.isLoading) {
     return (
-      <div className="rounded-lg border border-gray-200 bg-white p-12 text-center text-sm text-gray-500">
+      <div className="rounded-3xl border border-white/10 bg-white/[0.06] p-12 text-center text-sm text-slate-300 backdrop-blur-xl">
         正在加载工作流…
       </div>
     );
@@ -133,7 +133,7 @@ export function WorkflowCanvas({ runId, pauseAutoRefresh = false }: WorkflowCanv
 
   if (query.isError || !query.data) {
     return (
-      <div className="rounded-lg border border-rose-200 bg-rose-50 p-6 text-sm text-rose-700">
+      <div className="rounded-2xl border border-rose-300/30 bg-rose-400/10 p-6 text-sm text-rose-100">
         无法加载工作流：{query.error?.message ?? '未知错误'}
       </div>
     );
@@ -148,12 +148,12 @@ export function WorkflowCanvas({ runId, pauseAutoRefresh = false }: WorkflowCanv
   return (
     <div className="space-y-6">
       {/* ─── Run header ──────────────────────────────────────────────────────── */}
-      <header className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
+      <header className="rounded-3xl border border-white/10 bg-white/[0.06] p-5 shadow-2xl shadow-cyan-950/25 backdrop-blur-xl">
         <div className="flex items-start justify-between gap-4">
           <div className="min-w-0 flex-1">
-            <p className="text-xs uppercase tracking-wide text-gray-400">主题</p>
-            <h1 className="mt-0.5 truncate text-xl font-semibold text-gray-900">{run.topic}</h1>
-            <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-gray-500">
+            <p className="text-xs uppercase tracking-[0.25em] text-cyan-200">主题</p>
+            <h1 className="mt-1 truncate text-xl font-bold text-white">{run.topic}</h1>
+            <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-400">
               <span>创建于 {formatRelativeTime(run.createdAt)}</span>
               {run.completedAt && <span>完成于 {formatRelativeTime(run.completedAt)}</span>}
               <span>累计花费 {formatFen(run.totalCostFen)}</span>
@@ -167,7 +167,7 @@ export function WorkflowCanvas({ runId, pauseAutoRefresh = false }: WorkflowCanv
 
         {/* Progress bar */}
         <div className="mt-4">
-          <div className="flex items-center justify-between text-xs text-gray-500">
+          <div className="flex items-center justify-between text-xs text-slate-400">
             <span>进度 {progress}%</span>
             {!isTerminalRunStatus(runStatus) && !pauseAutoRefresh && (
               <span
@@ -198,14 +198,14 @@ export function WorkflowCanvas({ runId, pauseAutoRefresh = false }: WorkflowCanv
               </span>
             )}
           </div>
-          <div className="mt-1.5 h-1.5 w-full overflow-hidden rounded-full bg-gray-100">
+          <div className="mt-1.5 h-1.5 w-full overflow-hidden rounded-full bg-white/10">
             <div
               className={`h-full transition-all duration-500 ${
                 runStatus === 'failed'
-                  ? 'bg-rose-500'
+                  ? 'bg-gradient-to-r from-rose-400 to-pink-400'
                   : runStatus === 'done'
-                  ? 'bg-emerald-500'
-                  : 'bg-amber-500'
+                  ? 'bg-gradient-to-r from-emerald-300 to-cyan-300'
+                  : 'bg-gradient-to-r from-cyan-300 to-fuchsia-300'
               }`}
               style={{ width: `${Math.max(progress, 2)}%` }}
             />
@@ -239,7 +239,7 @@ export function WorkflowCanvas({ runId, pauseAutoRefresh = false }: WorkflowCanv
 
       {/* ─── Footer hint when terminal ──────────────────────────────────────── */}
       {isTerminalRunStatus(runStatus) && (
-        <p className="text-center text-xs text-gray-400">
+        <p className="text-center text-xs text-slate-500">
           运行已 {RUN_STATUS_LABELS[runStatus]}。轮询已停止。
         </p>
       )}
@@ -261,22 +261,22 @@ function RunErrorBanner({ failedNode, runErrorMsg }: RunErrorBannerProps) {
     const f = friendlyFromNodeError(failedNode.errorMsg, failedNode.nodeType);
     const labels = NODE_LABELS[failedNode.nodeType];
     return (
-      <div className="mt-4 rounded-md bg-rose-50 px-3 py-2.5 text-xs text-rose-800 ring-1 ring-inset ring-rose-200">
+      <div className="mt-4 rounded-2xl border border-rose-300/30 bg-rose-400/10 px-3 py-2.5 text-xs text-rose-100">
         <div className="flex flex-wrap items-center gap-1.5">
           <span className="font-semibold">{labels.zh}失败 · {f.title}</span>
-          <span className="rounded bg-white/70 px-1.5 py-0.5 font-mono text-[10px] text-rose-700 ring-1 ring-inset ring-rose-200">
+          <span className="rounded bg-rose-300/20 px-1.5 py-0.5 font-mono text-[10px] text-rose-100 ring-1 ring-rose-300/30">
             {f.code}
           </span>
           {f.isOpsIssue && (
-            <span className="rounded bg-amber-100 px-1.5 py-0.5 text-[10px] text-amber-800 ring-1 ring-inset ring-amber-200">
+            <span className="rounded bg-amber-300/15 px-1.5 py-0.5 text-[10px] text-amber-100 ring-1 ring-amber-300/30">
               需联系管理员
             </span>
           )}
         </div>
-        <p className="mt-1 leading-relaxed text-rose-700">
+        <p className="mt-1 leading-relaxed text-rose-100/85">
           {f.hint}
         </p>
-        <p className="mt-1.5 text-[11px] text-rose-600/80">
+        <p className="mt-1.5 text-[11px] text-rose-100/65">
           展开下方「{labels.zh}」卡片，点「查看详情 + 建议」获得完整诊断。
         </p>
       </div>
@@ -284,7 +284,7 @@ function RunErrorBanner({ failedNode, runErrorMsg }: RunErrorBannerProps) {
   }
 
   return (
-    <div className="mt-4 rounded-md bg-rose-50 px-3 py-2 text-xs text-rose-700 ring-1 ring-inset ring-rose-200">
+    <div className="mt-4 rounded-2xl border border-rose-300/30 bg-rose-400/10 px-3 py-2 text-xs text-rose-100">
       <span className="font-medium">运行错误：</span>
       {runErrorMsg}
     </div>

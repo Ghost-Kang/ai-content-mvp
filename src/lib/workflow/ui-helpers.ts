@@ -42,12 +42,12 @@ export const NODE_LABELS: Record<NodeType, { zh: string; sub: string }> = {
 // Tailwind class triplets. Kept literal so PurgeCSS picks them up — DO NOT
 // build these strings dynamically.
 export const STATUS_BADGE_CLASSES: Record<StepStatus, string> = {
-  pending: 'bg-gray-100 text-gray-600 ring-gray-200',
-  running: 'bg-amber-50 text-amber-700 ring-amber-200',
-  done:    'bg-emerald-50 text-emerald-700 ring-emerald-200',
-  failed:  'bg-rose-50 text-rose-700 ring-rose-200',
-  skipped: 'bg-slate-100 text-slate-500 ring-slate-200',
-  dirty:   'bg-orange-50 text-orange-700 ring-orange-200',
+  pending: 'bg-white/5 text-slate-300 ring-white/10',
+  running: 'bg-amber-300/15 text-amber-100 ring-amber-300/30',
+  done:    'bg-emerald-400/15 text-emerald-100 ring-emerald-300/30',
+  failed:  'bg-rose-400/15 text-rose-100 ring-rose-300/30',
+  skipped: 'bg-slate-400/10 text-slate-300 ring-slate-300/20',
+  dirty:   'bg-orange-300/15 text-orange-100 ring-orange-300/30',
 };
 
 export const STATUS_LABELS: Record<StepStatus, string> = {
@@ -68,11 +68,11 @@ export const RUN_STATUS_LABELS: Record<RunStatus, string> = {
 };
 
 export const RUN_STATUS_BADGE_CLASSES: Record<RunStatus, string> = {
-  pending:   'bg-gray-100 text-gray-600 ring-gray-200',
-  running:   'bg-amber-50 text-amber-700 ring-amber-200',
-  done:      'bg-emerald-50 text-emerald-700 ring-emerald-200',
-  failed:    'bg-rose-50 text-rose-700 ring-rose-200',
-  cancelled: 'bg-slate-100 text-slate-500 ring-slate-200',
+  pending:   'bg-white/5 text-slate-300 ring-white/10',
+  running:   'bg-amber-300/15 text-amber-100 ring-amber-300/30',
+  done:      'bg-emerald-400/15 text-emerald-100 ring-emerald-300/30',
+  failed:    'bg-rose-400/15 text-rose-100 ring-rose-300/30',
+  cancelled: 'bg-slate-400/10 text-slate-300 ring-slate-300/20',
 };
 
 // `done | failed | cancelled` are terminal — once a run hits one of these we

@@ -38,7 +38,7 @@ function expiryHint(iso: string): string {
 export function BundleDownload({ bundle }: BundleDownloadProps) {
   if (!bundle) {
     return (
-      <div className="rounded-md border border-dashed border-gray-200 bg-gray-50 p-3 text-xs text-gray-500">
+      <div className="rounded-xl border border-dashed border-white/15 bg-white/[0.04] p-3 text-xs text-slate-400">
         本次导出未生成压缩包（Storage 未配置 / 已跳过）。脚本与剪映 JSON 仍保留在 <code>output_jsonb</code> 中。
       </div>
     );
@@ -52,10 +52,10 @@ export function BundleDownload({ bundle }: BundleDownloadProps) {
       <a
         href={bundle.signedUrl}
         download={bundle.filename}
-        className={`inline-flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium shadow-sm ring-1 ring-inset transition-colors ${
+        className={`inline-flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-semibold shadow-lg transition ${
           expired
-            ? 'cursor-not-allowed bg-gray-100 text-gray-400 ring-gray-200'
-            : 'bg-indigo-600 text-white ring-indigo-700 hover:bg-indigo-700'
+            ? 'cursor-not-allowed bg-white/10 text-slate-400 shadow-none'
+            : 'bg-gradient-to-r from-cyan-300 to-emerald-200 text-slate-950 shadow-cyan-400/25 hover:saturate-110'
         }`}
         aria-disabled={expired}
         onClick={(e) => {
@@ -78,13 +78,13 @@ export function BundleDownload({ bundle }: BundleDownloadProps) {
         下载 .zip ({formatBytes(bundle.bytes)})
       </a>
 
-      <div className="flex items-center gap-2 text-xs text-gray-500">
+      <div className="flex items-center gap-2 text-xs text-slate-400">
         <span className="truncate font-mono">{bundle.filename}</span>
         <span className="shrink-0">· {expiryHint(bundle.expiresAt)}</span>
       </div>
 
       {partial && (
-        <div className="rounded-md bg-amber-50 px-2.5 py-1.5 text-xs text-amber-800 ring-1 ring-inset ring-amber-200">
+        <div className="rounded-xl border border-amber-300/30 bg-amber-300/10 px-2.5 py-1.5 text-xs text-amber-100">
           ⚠ 部分导出：缺失帧 {bundle.missingFrames.join(', ')}（共 {bundle.missingFrames.length} 帧）。建议重跑导出节点重新拉取。
         </div>
       )}

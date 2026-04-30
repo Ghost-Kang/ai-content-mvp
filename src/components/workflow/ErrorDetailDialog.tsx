@@ -67,21 +67,21 @@ export function ErrorDetailDialog({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-gray-900/40 px-4 py-8"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 px-4 py-8 backdrop-blur-sm"
       role="dialog"
       aria-modal="true"
       aria-labelledby="error-detail-title"
     >
-      <div className="flex max-h-full w-full max-w-2xl flex-col rounded-xl bg-white shadow-xl">
+      <div className="flex max-h-full w-full max-w-2xl flex-col rounded-3xl border border-white/10 bg-slate-950/85 shadow-2xl shadow-cyan-950/40 backdrop-blur-xl">
         {/* Header */}
-        <div className="flex items-start justify-between border-b border-gray-100 px-5 py-3">
+        <div className="flex items-start justify-between border-b border-white/10 px-5 py-3">
           <div className="min-w-0 flex-1">
-            <p className="text-xs uppercase tracking-wide text-gray-400">
+            <p className="text-xs uppercase tracking-[0.2em] text-cyan-200/75">
               {labels.sub} · {labels.zh}
             </p>
             <h2
               id="error-detail-title"
-              className="mt-0.5 truncate text-base font-semibold text-rose-700"
+              className="mt-0.5 truncate text-base font-bold text-rose-200"
             >
               {friendly.title}
             </h2>
@@ -89,7 +89,7 @@ export function ErrorDetailDialog({
           <button
             type="button"
             onClick={onClose}
-            className="ml-3 rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+            className="ml-3 rounded p-1 text-slate-400 transition hover:bg-white/10 hover:text-white"
             aria-label="关闭"
           >
             <svg className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
@@ -102,20 +102,20 @@ export function ErrorDetailDialog({
         <div className="flex-1 space-y-4 overflow-auto px-5 py-4">
           {/* Pills row */}
           <div className="flex flex-wrap gap-1.5 text-xs">
-            <span className="inline-flex items-center gap-1 rounded-full bg-gray-100 px-2 py-0.5 font-mono text-[10px] text-gray-700">
+            <span className="inline-flex items-center gap-1 rounded-full bg-white/5 px-2 py-0.5 font-mono text-[10px] text-slate-200 ring-1 ring-white/10">
               {friendly.code}
             </span>
             {friendly.isOpsIssue && (
-              <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-amber-800 ring-1 ring-inset ring-amber-200">
+              <span className="inline-flex items-center gap-1 rounded-full bg-amber-300/15 px-2 py-0.5 text-amber-100 ring-1 ring-amber-300/30">
                 需联系管理员
               </span>
             )}
             {friendly.isRetryable ? (
-              <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-emerald-700 ring-1 ring-inset ring-emerald-200">
+              <span className="inline-flex items-center gap-1 rounded-full bg-emerald-400/15 px-2 py-0.5 text-emerald-100 ring-1 ring-emerald-300/30">
                 可重试
               </span>
             ) : (
-              <span className="inline-flex items-center gap-1 rounded-full bg-gray-100 px-2 py-0.5 text-gray-600">
+              <span className="inline-flex items-center gap-1 rounded-full bg-white/5 px-2 py-0.5 text-slate-300 ring-1 ring-white/10">
                 重试不会自动恢复
               </span>
             )}
@@ -123,42 +123,42 @@ export function ErrorDetailDialog({
 
           {/* Detail */}
           <div>
-            <p className="text-xs font-medium uppercase tracking-wide text-gray-400">
+            <p className="text-xs font-medium uppercase tracking-[0.2em] text-cyan-200/75">
               发生了什么
             </p>
-            <p className="mt-1 text-sm text-gray-800">{friendly.detail}</p>
+            <p className="mt-1 text-sm text-slate-200">{friendly.detail}</p>
           </div>
 
           {/* Hint */}
-          <div className="rounded-md bg-indigo-50 px-3 py-2 ring-1 ring-inset ring-indigo-100">
-            <p className="text-xs font-medium uppercase tracking-wide text-indigo-600">
+          <div className="rounded-2xl border border-cyan-300/25 bg-cyan-300/10 px-3 py-2.5">
+            <p className="text-xs font-medium uppercase tracking-[0.2em] text-cyan-200">
               建议下一步
             </p>
-            <p className="mt-1 text-sm text-indigo-900">{friendly.hint}</p>
+            <p className="mt-1 text-sm text-cyan-50">{friendly.hint}</p>
           </div>
 
           {/* Step metadata */}
-          <dl className="grid grid-cols-2 gap-x-4 gap-y-2 text-xs text-gray-600 sm:grid-cols-3">
+          <dl className="grid grid-cols-2 gap-x-4 gap-y-2 text-xs text-slate-300 sm:grid-cols-3">
             <div>
-              <dt className="text-[10px] uppercase tracking-wide text-gray-400">重试次数</dt>
+              <dt className="text-[10px] uppercase tracking-[0.2em] text-slate-500">重试次数</dt>
               <dd className="mt-0.5">{retryCount} 次</dd>
             </div>
             <div>
-              <dt className="text-[10px] uppercase tracking-wide text-gray-400">开始时间</dt>
+              <dt className="text-[10px] uppercase tracking-[0.2em] text-slate-500">开始时间</dt>
               <dd className="mt-0.5">{formatTime(startedAt)}</dd>
             </div>
             <div>
-              <dt className="text-[10px] uppercase tracking-wide text-gray-400">耗时</dt>
+              <dt className="text-[10px] uppercase tracking-[0.2em] text-slate-500">耗时</dt>
               <dd className="mt-0.5">{formatDuration(durationMs)}</dd>
             </div>
           </dl>
 
           {/* Raw message (collapsed by default) */}
-          <div className="border-t border-gray-100 pt-3">
+          <div className="border-t border-white/10 pt-3">
             <button
               type="button"
               onClick={() => setShowRaw((v) => !v)}
-              className="flex w-full items-center justify-between text-xs font-medium text-gray-500 hover:text-gray-700"
+              className="flex w-full items-center justify-between text-xs font-medium text-slate-400 transition hover:text-cyan-200"
               aria-expanded={showRaw}
             >
               <span>{showRaw ? '收起原始错误' : '展开原始错误信息（工程排查用）'}</span>
@@ -173,7 +173,7 @@ export function ErrorDetailDialog({
               </svg>
             </button>
             {showRaw && (
-              <pre className="mt-2 max-h-48 overflow-auto rounded-md bg-gray-900 px-3 py-2 font-mono text-[11px] leading-snug text-gray-100">
+              <pre className="mt-2 max-h-48 overflow-auto rounded-xl border border-white/10 bg-slate-950/90 px-3 py-2 font-mono text-[11px] leading-snug text-slate-200">
                 {friendly.rawMessage || '(empty)'}
               </pre>
             )}
@@ -181,14 +181,14 @@ export function ErrorDetailDialog({
         </div>
 
         {/* Footer */}
-        <div className="flex items-center justify-between gap-2 border-t border-gray-100 px-5 py-3">
-          <p className="text-[11px] text-gray-400">
+        <div className="flex items-center justify-between gap-2 border-t border-white/10 px-5 py-3">
+          <p className="text-[11px] text-slate-500">
             重试 / 跳过 操作请使用节点卡片下方的按钮。
           </p>
           <button
             type="button"
             onClick={onClose}
-            className="rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50"
+            className="rounded-xl border border-white/15 bg-white/5 px-3 py-1.5 text-sm font-medium text-slate-200 transition hover:border-cyan-300/40 hover:bg-white/10"
           >
             关闭
           </button>

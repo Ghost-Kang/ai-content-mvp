@@ -1,6 +1,7 @@
 // W3-05 — Start a new workflow run.
 
 import Link from 'next/link';
+import { Suspense } from 'react';
 import { UserButton } from '@clerk/nextjs';
 import { NewRunForm } from '@/components/workflow/NewRunForm';
 import { TechBadge, TechCard, TechHeader, TechPageShell } from '@/components/layout/TechPage';
@@ -36,7 +37,9 @@ export default function NewRunPage() {
         </section>
 
         <TechCard className="p-6">
-          <NewRunForm />
+          <Suspense fallback={<div className="h-48 animate-pulse rounded-2xl bg-white/[0.03]" />}>
+            <NewRunForm />
+          </Suspense>
         </TechCard>
       </main>
     </TechPageShell>

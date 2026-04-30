@@ -3,25 +3,88 @@
 @tailwind utilities;
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  color-scheme: dark;
+  --bg-base: 2 6 23;
+  --fg-base: 226 232 240;
+  --accent-cyan: 103 232 249;
+  --accent-violet: 196 181 253;
+  --accent-emerald: 110 231 183;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
-
+html,
 body {
-  color: var(--foreground);
-  background: var(--background);
-  font-family: Arial, Helvetica, sans-serif;
+  background-color: rgb(var(--bg-base));
+  color: rgb(var(--fg-base));
+  font-family: var(--font-geist-sans), ui-sans-serif, system-ui, -apple-system,
+    "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
 }
 
 @layer utilities {
   .text-balance {
     text-wrap: balance;
   }
+
+  /* Conic shimmering border (Google AI hero pill / button highlight) */
+  .ring-aurora {
+    background:
+      conic-gradient(
+        from var(--aurora-angle, 0deg),
+        rgba(103, 232, 249, 0.55),
+        rgba(196, 181, 253, 0.55),
+        rgba(110, 231, 183, 0.55),
+        rgba(103, 232, 249, 0.55)
+      );
+  }
+
+  .grid-bg {
+    background-image:
+      linear-gradient(rgba(148, 163, 184, 0.06) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(148, 163, 184, 0.06) 1px, transparent 1px);
+    background-size: 42px 42px;
+  }
+
+  .scrollbar-none::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+/* ── Animations ───────────────────────────────────────────────────────── */
+
+@keyframes aurora-spin {
+  to { --aurora-angle: 360deg; }
+}
+
+@keyframes float-slow {
+  0%, 100% { transform: translateY(0) }
+  50%      { transform: translateY(-8px) }
+}
+
+@keyframes shine {
+  0%   { transform: translateX(-120%); opacity: 0; }
+  20%  { opacity: 1; }
+  100% { transform: translateX(120%);  opacity: 0; }
+}
+
+@keyframes pulse-soft {
+  0%, 100% { opacity: 0.5; }
+  50%      { opacity: 1; }
+}
+
+@keyframes pipeline-flow {
+  0%   { stroke-dashoffset: 240; opacity: 0.2; }
+  50%  { opacity: 1; }
+  100% { stroke-dashoffset: 0;   opacity: 0.6; }
+}
+
+@keyframes node-glow {
+  0%, 100% { filter: drop-shadow(0 0 0 rgba(103, 232, 249, 0)); }
+  50%      { filter: drop-shadow(0 0 14px rgba(103, 232, 249, 0.55)); }
+}
+
+@property --aurora-angle {
+  syntax: "<angle>";
+  initial-value: 0deg;
+  inherits: false;
 }

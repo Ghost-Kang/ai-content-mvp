@@ -46,9 +46,8 @@ export function TopicCard({ item }: Props) {
     : `${item.platform}-${item.opusId}`;
   const cta = `/runs/new?source=trending&topic=${encodeURIComponent(useTopic)}`;
 
-  async function handleAnalyzeClick() {
-    setExpanded((prev) => !prev);
-    if (result || analyze.isPending) return;
+  async function runAnalysis() {
+    if (analyze.isPending) return;
     setErrorMsg(null);
     try {
       const trimmedNiche = niche.trim();
@@ -69,6 +68,15 @@ export function TopicCard({ item }: Props) {
     } catch (err) {
       const friendly = friendlyFromAny(err);
       setErrorMsg(friendly.title + (friendly.detail ? ` · ${friendly.detail}` : ''));
+    }
+  }
+
+  function handleAnalyzeClick() {
+    const next = !expanded;
+    setExpanded(next);
+    // Only fire the request when opening AND we don't already have a result.
+    if (next && !result && !analyze.isPending) {
+      void runAnalysis();
     }
   }
 
@@ -124,7 +132,8 @@ export function TopicCard({ item }: Props) {
           onRetry={() => {
             setResult(null);
             setErrorMsg(null);
-            void handleAnalyzeClick();
+            // Stay expanded; just rerun the analysis without toggling.
+            void runAnalysis();
           }}
         />
       )}

@@ -68,17 +68,17 @@ import {
 // ─── Field-issue → input-class helper (shared by both editors) ───────────────
 
 const BASE_INPUT_CLASS =
-  'mt-0.5 w-full rounded border px-2 py-1 text-sm text-gray-900 ' +
-  'focus:outline-none focus:ring-1 disabled:bg-gray-50';
+  'mt-0.5 w-full rounded-xl border px-2.5 py-1.5 text-sm text-white bg-slate-950/70 ' +
+  'placeholder:text-slate-500 focus:outline-none focus:ring-1 disabled:bg-slate-900/60 disabled:opacity-60';
 
 function inputBorderClass(issue: FieldIssue | undefined, blurred: boolean): string {
   if (!blurred || !issue) {
-    return 'border-gray-300 focus:border-indigo-500 focus:ring-indigo-500';
+    return 'border-white/10 focus:border-cyan-300/60 focus:ring-cyan-300/40';
   }
   if (issue.level === 'error') {
-    return 'border-rose-400 bg-rose-50 focus:border-rose-500 focus:ring-rose-500';
+    return 'border-rose-400/60 bg-rose-400/10 focus:border-rose-400 focus:ring-rose-400/40';
   }
-  return 'border-amber-400 bg-amber-50 focus:border-amber-500 focus:ring-amber-500';
+  return 'border-amber-400/60 bg-amber-400/10 focus:border-amber-400 focus:ring-amber-400/40';
 }
 
 interface IssueHintProps {
@@ -88,7 +88,7 @@ interface IssueHintProps {
 
 function IssueHint({ issue, blurred }: IssueHintProps) {
   if (!blurred || !issue) return null;
-  const color = issue.level === 'error' ? 'text-rose-600' : 'text-amber-700';
+  const color = issue.level === 'error' ? 'text-rose-300' : 'text-amber-200';
   return <p className={`mt-0.5 text-[10px] ${color}`}>{issue.msg}</p>;
 }
 
@@ -152,9 +152,9 @@ function DragHandle({ attributes, listeners, setActivatorNodeRef, disabled }: Dr
       title="拖动以重新排序"
       aria-label="拖动以重新排序"
       className={
-        'mr-1 cursor-grab touch-none rounded p-1 text-gray-300 ' +
-        'hover:bg-gray-100 hover:text-gray-700 active:cursor-grabbing ' +
-        'focus:outline-none focus:ring-2 focus:ring-indigo-300 ' +
+        'mr-1 cursor-grab touch-none rounded p-1 text-slate-500 ' +
+        'hover:bg-white/[0.06] hover:text-cyan-200 active:cursor-grabbing ' +
+        'focus:outline-none focus:ring-2 focus:ring-cyan-300/40 ' +
         'disabled:cursor-not-allowed disabled:opacity-30'
       }
     >
@@ -204,10 +204,10 @@ export function ScriptFrameEditor({ frames, onChange, disabled }: ScriptFrameEdi
     <div className="space-y-3">
       {/* Top summary — total char count vs the v2 prompt's 200-215 target */}
       <div
-        className={`flex items-center justify-between rounded-md px-3 py-2 text-xs ring-1 ring-inset ${
+        className={`flex items-center justify-between rounded-2xl border px-3 py-2 text-xs ${
           inTarget
-            ? 'bg-emerald-50 text-emerald-800 ring-emerald-200'
-            : 'bg-amber-50 text-amber-800 ring-amber-200'
+            ? 'border-emerald-300/30 bg-emerald-400/10 text-emerald-100'
+            : 'border-amber-300/30 bg-amber-300/10 text-amber-100'
         }`}
       >
         <span>
@@ -247,7 +247,7 @@ export function ScriptFrameEditor({ frames, onChange, disabled }: ScriptFrameEdi
         type="button"
         disabled={disabled}
         onClick={() => onChange(insertFrameAt(frames, frames.length, makeEmptyScriptFrame(0)))}
-        className="flex w-full items-center justify-center gap-1 rounded-md border border-dashed border-gray-300 bg-white px-3 py-2 text-xs text-gray-500 hover:border-indigo-400 hover:bg-indigo-50 hover:text-indigo-700 disabled:cursor-not-allowed disabled:opacity-50"
+        className="flex w-full items-center justify-center gap-1 rounded-2xl border border-dashed border-white/15 bg-white/[0.04] px-3 py-2 text-xs text-slate-400 transition hover:border-cyan-300/40 hover:bg-cyan-300/5 hover:text-cyan-100 disabled:cursor-not-allowed disabled:opacity-50"
       >
         + 添加新帧到末尾
       </button>
@@ -288,7 +288,7 @@ function ScriptFrameCard({
     setBlurred((prev) => (prev.has(key) ? prev : new Set([...prev, key])));
 
   return (
-    <div className="rounded-lg border border-gray-200 bg-white p-3 shadow-sm">
+    <div className="rounded-2xl border border-white/10 bg-slate-950/60 p-3 shadow-lg shadow-cyan-950/20 backdrop-blur-xl">
       <FrameCardHeader
         label={`第 ${frame.index} 帧`}
         position={position}
@@ -303,8 +303,8 @@ function ScriptFrameCard({
 
       <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-3">
         <div className="sm:col-span-2">
-          <label htmlFor={`${id}-text`} className="block text-[11px] font-medium text-gray-600">
-            口播文案 <span className="text-gray-400">({charCount} 字 · 建议 8-15)</span>
+          <label htmlFor={`${id}-text`} className="block text-[11px] font-medium text-slate-300">
+            口播文案 <span className="text-slate-500">({charCount} 字 · 建议 8-15)</span>
           </label>
           <textarea
             id={`${id}-text`}
@@ -319,7 +319,7 @@ function ScriptFrameCard({
           <IssueHint issue={issues.text} blurred={blurred.has('text')} />
         </div>
         <div>
-          <label htmlFor={`${id}-dur`} className="block text-[11px] font-medium text-gray-600">
+          <label htmlFor={`${id}-dur`} className="block text-[11px] font-medium text-slate-300">
             时长 (秒)
           </label>
           <input
@@ -339,7 +339,7 @@ function ScriptFrameCard({
       </div>
 
       <div className="mt-2">
-        <label htmlFor={`${id}-vd`} className="block text-[11px] font-medium text-gray-600">
+        <label htmlFor={`${id}-vd`} className="block text-[11px] font-medium text-slate-300">
           画面提示（可选 · 给分镜节点参考）
         </label>
         <input
@@ -386,11 +386,11 @@ export function StoryboardFrameEditor({ frames, onChange, disabled }: Storyboard
 
   return (
     <div className="space-y-3">
-      <div className="flex items-center justify-between rounded-md bg-gray-50 px-3 py-2 text-xs text-gray-700 ring-1 ring-inset ring-gray-200">
+      <div className="flex items-center justify-between rounded-2xl border border-white/10 bg-white/[0.04] px-3 py-2 text-xs text-slate-200">
         <span>
           共 <strong>{frames.length}</strong> 帧 · 总时长 <strong>{totalDur.toFixed(1)}s</strong>
         </span>
-        <span className={cameraOK ? 'text-emerald-700' : 'text-amber-700'}>
+        <span className={cameraOK ? 'text-emerald-200' : 'text-amber-200'}>
           {cameraOK ? `✓ 镜头语言 ${cameraVariety} 种` : `镜头语言仅 ${cameraVariety} 种 (建议 ≥5)`}
         </span>
       </div>
@@ -424,7 +424,7 @@ export function StoryboardFrameEditor({ frames, onChange, disabled }: Storyboard
         type="button"
         disabled={disabled}
         onClick={() => onChange(insertFrameAt(frames, frames.length, makeEmptyStoryboardFrame(0)))}
-        className="flex w-full items-center justify-center gap-1 rounded-md border border-dashed border-gray-300 bg-white px-3 py-2 text-xs text-gray-500 hover:border-indigo-400 hover:bg-indigo-50 hover:text-indigo-700 disabled:cursor-not-allowed disabled:opacity-50"
+        className="flex w-full items-center justify-center gap-1 rounded-2xl border border-dashed border-white/15 bg-white/[0.04] px-3 py-2 text-xs text-slate-400 transition hover:border-cyan-300/40 hover:bg-cyan-300/5 hover:text-cyan-100 disabled:cursor-not-allowed disabled:opacity-50"
       >
         + 添加新帧到末尾
       </button>
@@ -458,7 +458,7 @@ function StoryboardFrameCard({
     setBlurred((prev) => (prev.has(key) ? prev : new Set([...prev, key])));
 
   return (
-    <div className="rounded-lg border border-gray-200 bg-white p-3 shadow-sm">
+    <div className="rounded-2xl border border-white/10 bg-slate-950/60 p-3 shadow-lg shadow-cyan-950/20 backdrop-blur-xl">
       <FrameCardHeader
         label={`第 ${frame.index} 帧`}
         position={position}
@@ -473,7 +473,7 @@ function StoryboardFrameCard({
 
       <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-3">
         <div className="sm:col-span-2">
-          <label htmlFor={`${id}-vo`} className="block text-[11px] font-medium text-gray-600">
+          <label htmlFor={`${id}-vo`} className="block text-[11px] font-medium text-slate-300">
             口播 (voiceover)
           </label>
           <input
@@ -489,7 +489,7 @@ function StoryboardFrameCard({
           <IssueHint issue={issues.voiceover} blurred={blurred.has('voiceover')} />
         </div>
         <div>
-          <label htmlFor={`${id}-dur`} className="block text-[11px] font-medium text-gray-600">
+          <label htmlFor={`${id}-dur`} className="block text-[11px] font-medium text-slate-300">
             时长 (秒)
           </label>
           <input
@@ -510,7 +510,7 @@ function StoryboardFrameCard({
 
       <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-3">
         <div>
-          <label htmlFor={`${id}-cam`} className="block text-[11px] font-medium text-gray-600">
+          <label htmlFor={`${id}-cam`} className="block text-[11px] font-medium text-slate-300">
             镜头语言
           </label>
           <select
@@ -518,7 +518,7 @@ function StoryboardFrameCard({
             value={frame.cameraLanguage}
             disabled={disabled}
             onChange={(e) => onPatch({ cameraLanguage: e.target.value as StoryboardFrameShape['cameraLanguage'] })}
-            className={`${BASE_INPUT_CLASS} bg-white ${inputBorderClass(undefined, false)}`}
+            className={`${BASE_INPUT_CLASS} ${inputBorderClass(undefined, false)}`}
           >
             {CAMERA_LANGUAGE_VOCAB.map((c) => (
               <option key={c} value={c}>{c}</option>
@@ -526,7 +526,7 @@ function StoryboardFrameCard({
           </select>
         </div>
         <div className="sm:col-span-2">
-          <label htmlFor={`${id}-scene`} className="block text-[11px] font-medium text-gray-600">
+          <label htmlFor={`${id}-scene`} className="block text-[11px] font-medium text-slate-300">
             场景描述（中文 · 给人看）
           </label>
           <input
@@ -544,8 +544,8 @@ function StoryboardFrameCard({
       </div>
 
       <div className="mt-2">
-        <label htmlFor={`${id}-img`} className="block text-[11px] font-medium text-gray-600">
-          Image prompt <span className="text-gray-400">({promptLen} 字 · 目标 50-75，硬上限 80)</span>
+        <label htmlFor={`${id}-img`} className="block text-[11px] font-medium text-slate-300">
+          Image prompt <span className="text-slate-500">({promptLen} 字 · 目标 50-75，硬上限 80)</span>
         </label>
         <textarea
           id={`${id}-img`}
@@ -561,7 +561,7 @@ function StoryboardFrameCard({
       </div>
 
       <div className="mt-2">
-        <label htmlFor={`${id}-ost`} className="block text-[11px] font-medium text-gray-600">
+        <label htmlFor={`${id}-ost`} className="block text-[11px] font-medium text-slate-300">
           屏幕字幕 (可选 · ≤12 字)
         </label>
         <input
@@ -602,7 +602,7 @@ function FrameCardHeader({
   const onlyOne = total <= 1;
 
   return (
-    <div className="flex items-center justify-between border-b border-gray-100 pb-1.5">
+    <div className="flex items-center justify-between border-b border-white/10 pb-1.5">
       <div className="flex items-center">
         <DragHandle
           attributes={handle.attributes}
@@ -610,7 +610,7 @@ function FrameCardHeader({
           setActivatorNodeRef={handle.setActivatorNodeRef}
           disabled={disabled ?? false}
         />
-        <span className="text-xs font-semibold uppercase tracking-wide text-gray-500">{label}</span>
+        <span className="text-xs font-semibold uppercase tracking-wide text-slate-400">{label}</span>
       </div>
       <div className="flex items-center gap-1">
         <IconButton title="在此帧上方插入新帧" onClick={onInsertAbove} disabled={disabled}>
@@ -648,8 +648,8 @@ interface IconButtonProps {
 
 function IconButton({ title, onClick, disabled, variant = 'default', children }: IconButtonProps) {
   const colors = variant === 'danger'
-    ? 'text-rose-500 hover:bg-rose-50 hover:text-rose-700'
-    : 'text-gray-400 hover:bg-gray-100 hover:text-gray-700';
+    ? 'text-rose-300 hover:bg-rose-400/10 hover:text-rose-200'
+    : 'text-slate-400 hover:bg-white/[0.06] hover:text-cyan-200';
   return (
     <button
       type="button"

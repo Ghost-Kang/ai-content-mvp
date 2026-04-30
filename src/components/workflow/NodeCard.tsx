@@ -217,18 +217,20 @@ function ProgressBlock({ info }: { info: NodeProgressView }) {
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between gap-2 text-xs">
-        <span className={info.stalled ? 'font-semibold text-rose-700' : 'font-semibold text-amber-700'}>
+        <span className={info.stalled ? 'font-semibold text-rose-200' : 'font-semibold text-amber-100'}>
           {info.title}
         </span>
-        {info.etaText && <span className="text-gray-500">{info.etaText}</span>}
+        {info.etaText && <span className="text-slate-400">{info.etaText}</span>}
       </div>
-      <div className="h-1.5 w-full overflow-hidden rounded-full bg-gray-100">
+      <div className="h-1.5 w-full overflow-hidden rounded-full bg-white/10">
         <div
-          className={`h-full transition-all duration-500 ${info.stalled ? 'bg-rose-500' : 'bg-amber-500'}`}
+          className={`h-full transition-all duration-500 ${
+            info.stalled ? 'bg-gradient-to-r from-rose-400 to-pink-400' : 'bg-gradient-to-r from-cyan-300 to-fuchsia-300'
+          }`}
           style={{ width: `${Math.max(2, info.percent)}%` }}
         />
       </div>
-      <p className={`text-xs leading-relaxed ${info.stalled ? 'text-rose-600' : 'text-gray-600'}`}>
+      <p className={`text-xs leading-relaxed ${info.stalled ? 'text-rose-200/85' : 'text-slate-300'}`}>
         {info.detail}
       </p>
     </div>
@@ -238,8 +240,8 @@ function ProgressBlock({ info }: { info: NodeProgressView }) {
 function TopicSummary({ topic }: { topic: string }) {
   return (
     <div className="space-y-1">
-      <p className="text-xs uppercase tracking-wide text-gray-400">主题</p>
-      <p className="text-sm font-medium text-gray-900">{topic}</p>
+      <p className="text-xs uppercase tracking-[0.2em] text-cyan-200/75">主题</p>
+      <p className="text-sm font-medium text-white">{topic}</p>
     </div>
   );
 }
@@ -251,13 +253,13 @@ function ScriptSummary({ output }: { output: unknown }) {
   const preview    = firstFrame?.voiceover ?? firstFrame?.text ?? '';
   return (
     <div className="space-y-2 text-sm">
-      <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-500">
+      <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-400">
         <span>{frameCount} 帧</span>
         <span>{charCount} 字</span>
       </div>
       {preview && (
-        <p className="line-clamp-3 text-xs text-gray-700">
-          <span className="text-gray-400">第 1 帧：</span>
+        <p className="line-clamp-3 text-xs text-slate-200">
+          <span className="text-slate-500">第 1 帧：</span>
           {preview}
         </p>
       )}
@@ -271,13 +273,13 @@ function StoryboardSummary({ output }: { output: unknown }) {
   const firstScene = safeGet<string>(output, 'frames.0.scene') ?? '';
   return (
     <div className="space-y-2 text-sm">
-      <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-500">
+      <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-400">
         <span>{frames.length} 帧</span>
         <span>{totalSec.toFixed(1)} 秒</span>
       </div>
       {firstScene && (
-        <p className="line-clamp-2 text-xs text-gray-700">
-          <span className="text-gray-400">第 1 帧：</span>
+        <p className="line-clamp-2 text-xs text-slate-200">
+          <span className="text-slate-500">第 1 帧：</span>
           {firstScene}
         </p>
       )}
@@ -291,7 +293,7 @@ function VideoSummary({ output, costFen }: { output: unknown; costFen: number })
   const firstUrl   = frames[0]?.videoUrl;
   return (
     <div className="space-y-2 text-sm">
-      <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-500">
+      <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-400">
         <span>{frames.length} 段</span>
         <span>{totalSec.toFixed(1)} 秒</span>
         <span>{formatFen(costFen)}</span>
@@ -301,7 +303,7 @@ function VideoSummary({ output, costFen }: { output: unknown; costFen: number })
           href={firstUrl}
           target="_blank"
           rel="noopener noreferrer"
-          className="inline-flex items-center gap-1 text-xs text-indigo-600 hover:text-indigo-700 hover:underline"
+          className="inline-flex items-center gap-1 text-xs text-cyan-200 hover:text-cyan-100 hover:underline"
         >
           预览第 1 段
           <svg className="h-3 w-3" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
@@ -331,19 +333,19 @@ function FailedSummary({
   return (
     <div className="space-y-1.5">
       <div className="flex flex-wrap items-center gap-1.5">
-        <span className="text-xs font-semibold text-rose-700">{friendly.title}</span>
-        <span className="rounded bg-rose-50 px-1.5 py-0.5 font-mono text-[10px] text-rose-700 ring-1 ring-inset ring-rose-200">
+        <span className="text-xs font-semibold text-rose-200">{friendly.title}</span>
+        <span className="rounded bg-rose-300/15 px-1.5 py-0.5 font-mono text-[10px] text-rose-100 ring-1 ring-rose-300/30">
           {friendly.code}
         </span>
         {retryCount > 0 && (
-          <span className="text-[10px] text-gray-500">已自动重试 {retryCount} 次</span>
+          <span className="text-[10px] text-slate-400">已自动重试 {retryCount} 次</span>
         )}
       </div>
-      <p className="line-clamp-2 text-xs text-rose-600">{friendly.detail}</p>
+      <p className="line-clamp-2 text-xs text-rose-200/85">{friendly.detail}</p>
       <button
         type="button"
         onClick={onShowDetail}
-        className="inline-flex items-center gap-1 text-xs font-medium text-rose-700 underline-offset-2 hover:underline"
+        className="inline-flex items-center gap-1 text-xs font-medium text-rose-200 underline-offset-2 hover:text-rose-100 hover:underline"
       >
         查看详情 + 建议
         <svg className="h-3 w-3" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
@@ -367,7 +369,7 @@ function ExportSummary({ output }: { output: unknown }) {
 
   return (
     <div className="space-y-3 text-sm">
-      <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-500">
+      <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-400">
         <span>{totalSec.toFixed(1)} 秒成品</span>
         {generated && <span>{new Date(generated).toLocaleString('zh-CN')}</span>}
       </div>
@@ -413,21 +415,21 @@ export function NodeCard({
 
   return (
     <article
-      className={`flex w-full flex-col rounded-xl border bg-white shadow-sm transition-all ${
+      className={`flex w-full flex-col rounded-2xl border bg-white/[0.06] shadow-2xl shadow-cyan-950/25 backdrop-blur-xl transition-all ${
         isActive
-          ? 'border-amber-300 ring-2 ring-amber-200'
-          : 'border-gray-200'
+          ? 'border-cyan-300/60 shadow-cyan-500/20 ring-1 ring-cyan-300/40'
+          : 'border-white/10'
       }`}
       data-node-type={nodeType}
       data-status={status}
     >
       {/* Header */}
-      <header className="flex items-start justify-between gap-2 border-b border-gray-100 px-4 py-3">
+      <header className="flex items-start justify-between gap-2 border-b border-white/10 px-4 py-3">
         <div className="min-w-0">
-          <p className="text-xs uppercase tracking-wide text-gray-400">
+          <p className="text-xs uppercase tracking-[0.2em] text-cyan-200/75">
             {idx} · {labels.sub}
           </p>
-          <h3 className="text-sm font-semibold text-gray-900">{labels.zh}</h3>
+          <h3 className="mt-0.5 text-sm font-bold text-white">{labels.zh}</h3>
         </div>
         <StepStatusBadge status={status} />
       </header>
@@ -440,7 +442,7 @@ export function NodeCard({
           progressInfo ? (
             <ProgressBlock info={progressInfo} />
           ) : (
-            <p className="text-xs text-gray-400">等待上游节点完成…</p>
+            <p className="text-xs text-slate-500">等待上游节点完成…</p>
           )
         )}
 
@@ -448,7 +450,7 @@ export function NodeCard({
           progressInfo ? (
             <ProgressBlock info={progressInfo} />
           ) : (
-            <p className="text-xs text-amber-700">
+            <p className="text-xs text-amber-100">
               正在执行 (重试 {step?.retryCount ?? 0} 次)…
             </p>
           )
@@ -488,11 +490,11 @@ export function NodeCard({
 
       {/* Footer / Expand toggle */}
       {canExpand && (
-        <footer className="border-t border-gray-100">
+        <footer className="border-t border-white/10">
           <button
             type="button"
             onClick={() => setExpanded((v) => !v)}
-            className="flex w-full items-center justify-between px-4 py-2 text-xs font-medium text-gray-500 hover:bg-gray-50"
+            className="flex w-full items-center justify-between px-4 py-2 text-xs font-medium text-slate-400 transition hover:bg-white/[0.04] hover:text-cyan-200"
             aria-expanded={expanded}
           >
             <span>{expanded ? '收起 output' : '展开原始 output_jsonb'}</span>
@@ -507,7 +509,7 @@ export function NodeCard({
             </svg>
           </button>
           {expanded && (
-            <pre className="max-h-72 overflow-auto border-t border-gray-100 bg-gray-50 px-4 py-3 text-[11px] leading-snug text-gray-700">
+            <pre className="max-h-72 overflow-auto border-t border-white/10 bg-slate-950/60 px-4 py-3 font-mono text-[11px] leading-snug text-slate-200">
               {JSON.stringify(step!.outputJson, null, 2)}
             </pre>
           )}

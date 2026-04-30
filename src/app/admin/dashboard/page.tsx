@@ -19,7 +19,6 @@
 import { notFound } from 'next/navigation';
 import { auth, currentUser } from '@clerk/nextjs/server';
 import { UserButton } from '@clerk/nextjs';
-import Link from 'next/link';
 
 import {
   adminUserCount,
@@ -34,6 +33,7 @@ import {
   type WorkflowStatus,
 } from '@/lib/admin';
 import { COMPLIANCE_ACTION_EXPORT_DISCLOSURE_OFF } from '@/lib/compliance/record-audit';
+import { TechBadge, TechHeader, TechPageShell } from '@/components/layout/TechPage';
 
 export const dynamic = 'force-dynamic';
 
@@ -50,11 +50,11 @@ const STATUS_LABEL: Record<WorkflowStatus, string> = {
 };
 
 const STATUS_COLOR: Record<WorkflowStatus, string> = {
-  pending:   'bg-gray-100 text-gray-600',
-  running:   'bg-blue-100 text-blue-700',
-  done:      'bg-emerald-100 text-emerald-700',
-  failed:    'bg-rose-100 text-rose-700',
-  cancelled: 'bg-amber-100 text-amber-700',
+  pending:   'bg-white/5 text-slate-300 ring-white/10',
+  running:   'bg-amber-300/15 text-amber-100 ring-amber-300/30',
+  done:      'bg-emerald-400/15 text-emerald-100 ring-emerald-300/30',
+  failed:    'bg-rose-400/15 text-rose-100 ring-rose-300/30',
+  cancelled: 'bg-slate-400/10 text-slate-300 ring-slate-300/20',
 };
 
 const NODE_LABEL: Record<NodeLatencyRow['nodeType'], string> = {
@@ -68,8 +68,6 @@ const NODE_LABEL: Record<NodeLatencyRow['nodeType'], string> = {
 export default async function AdminDashboardPage() {
   const { userId: clerkUserId } = await auth();
   if (!isAdminUser(clerkUserId)) {
-    // Fail closed — non-admins (including signed-out, since middleware would
-    // have redirected those already) get a 404 page.
     notFound();
   }
 
@@ -86,42 +84,30 @@ export default async function AdminDashboardPage() {
   });
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <header className="border-b border-gray-200 bg-white">
-        <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
-          <div className="flex items-center gap-3">
-            <Link href="/dashboard" className="text-base font-semibold text-gray-900 hover:text-indigo-600">
-              AI 内容营销工作室
-            </Link>
-            <span className="rounded-md bg-indigo-50 px-2 py-0.5 text-xs font-medium text-indigo-700">
-              运营
-            </span>
-          </div>
-          <UserButton afterSignOutUrl="/" />
-        </div>
-      </header>
+    <TechPageShell>
+      <TechHeader backHref="/dashboard" backLabel="控制台" right={<UserButton afterSignOutUrl="/" />} />
 
       <main className="mx-auto max-w-6xl px-6 py-10">
-        <div className="mb-6 flex items-end justify-between">
+        <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
           <div>
-            <p className="text-xs uppercase tracking-wide text-gray-400">W4-07</p>
-            <h1 className="mt-1 text-2xl font-semibold text-gray-900">运营 dashboard</h1>
-            <p className="mt-1 text-sm text-gray-500">
+            <TechBadge tone="amber">Ops · W4-07</TechBadge>
+            <h1 className="mt-3 text-3xl font-black tracking-tight text-white sm:text-4xl">运营 dashboard</h1>
+            <p className="mt-2 text-sm text-slate-400">
               v3 工作流近 7 天健康度 · 当月成本 ·{' '}
-              <span className="text-gray-700">{user?.emailAddresses[0]?.emailAddress ?? '未知'}</span>
+              <span className="text-slate-200">{user?.emailAddresses[0]?.emailAddress ?? '未知'}</span>
             </p>
           </div>
-          <div className="text-right text-xs text-gray-400">
+          <div className="text-right text-xs text-slate-500">
             <div>快照生成于 {generatedAtLabel}</div>
-            <div>刷新重新拉取；同部署内聚合结果 60s 去重（Next 数据缓存）</div>
+            <div>刷新重新拉取；同部署内聚合结果 60s 去重</div>
           </div>
         </div>
 
         {adminCount === 0 ? (
-          <div className="mb-6 rounded-md border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
-            ⚠ <code className="rounded bg-amber-100 px-1.5 py-0.5">ADMIN_USER_IDS</code>{' '}
+          <div className="mb-6 rounded-2xl border border-amber-300/30 bg-amber-300/10 p-4 text-sm text-amber-100">
+            ⚠ <code className="rounded bg-amber-300/20 px-1.5 py-0.5">ADMIN_USER_IDS</code>{' '}
             未配置 — 当前实例对所有登录用户开放运营 dashboard。请在 Vercel 环境变量
-            或本地 <code className="rounded bg-amber-100 px-1.5 py-0.5">.env.local</code> 设置
+            或本地 <code className="rounded bg-amber-300/20 px-1.5 py-0.5">.env.local</code> 设置
             管理员 Clerk userId 列表（逗号分隔），然后重新部署。
           </div>
         ) : null}
@@ -155,13 +141,13 @@ export default async function AdminDashboardPage() {
         </div>
 
         {/* Run-status breakdown chips */}
-        <section className="mt-8 rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
-          <h2 className="text-sm font-semibold text-gray-900">近 7 天运行状态分布</h2>
+        <section className="mt-8 rounded-3xl border border-white/10 bg-white/[0.06] p-6 shadow-2xl shadow-cyan-950/25 backdrop-blur-xl">
+          <h2 className="text-sm font-bold text-white">近 7 天运行状态分布</h2>
           <div className="mt-4 flex flex-wrap gap-2">
             {(['done', 'running', 'pending', 'failed', 'cancelled'] as WorkflowStatus[]).map((s) => (
               <span
                 key={s}
-                className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-medium ${STATUS_COLOR[s]}`}
+                className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-medium ring-1 ${STATUS_COLOR[s]}`}
               >
                 <span>{STATUS_LABEL[s]}</span>
                 <span className="font-semibold tabular-nums">{summary.runs.byStatus[s]}</span>
@@ -169,16 +155,16 @@ export default async function AdminDashboardPage() {
             ))}
           </div>
           {summary.runs.total === 0 ? (
-            <p className="mt-4 text-xs text-gray-400">最近 7 天没有任何运行记录。</p>
+            <p className="mt-4 text-xs text-slate-500">最近 7 天没有任何运行记录。</p>
           ) : null}
         </section>
 
         {/* Per-node latency table */}
-        <section className="mt-6 rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
-          <h2 className="text-sm font-semibold text-gray-900">近 7 天节点延迟（仅成功节点）</h2>
+        <section className="mt-6 rounded-3xl border border-white/10 bg-white/[0.06] p-6 shadow-2xl shadow-cyan-950/25 backdrop-blur-xl">
+          <h2 className="text-sm font-bold text-white">近 7 天节点延迟（仅成功节点）</h2>
           <div className="mt-4 overflow-x-auto">
             <table className="w-full min-w-[480px] text-left text-sm">
-              <thead className="text-xs uppercase tracking-wide text-gray-400">
+              <thead className="text-xs uppercase tracking-[0.2em] text-cyan-200/70">
                 <tr>
                   <th className="pb-2 font-medium">节点</th>
                   <th className="pb-2 font-medium tabular-nums">样本数</th>
@@ -187,38 +173,38 @@ export default async function AdminDashboardPage() {
                   <th className="pb-2 font-medium tabular-nums">P95</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-100">
+              <tbody className="divide-y divide-white/5">
                 {summary.latencyByNode.map((row) => (
                   <tr key={row.nodeType}>
-                    <td className="py-2 font-medium text-gray-900">{NODE_LABEL[row.nodeType]}</td>
-                    <td className="py-2 tabular-nums text-gray-600">{row.count.toLocaleString('zh-CN')}</td>
-                    <td className="py-2 tabular-nums text-gray-700">{formatLatency(row.avgMs)}</td>
-                    <td className="py-2 tabular-nums text-gray-700">{formatLatency(row.p50Ms)}</td>
-                    <td className="py-2 tabular-nums text-gray-700">{formatLatency(row.p95Ms)}</td>
+                    <td className="py-2 font-medium text-white">{NODE_LABEL[row.nodeType]}</td>
+                    <td className="py-2 tabular-nums text-slate-300">{row.count.toLocaleString('zh-CN')}</td>
+                    <td className="py-2 tabular-nums text-slate-200">{formatLatency(row.avgMs)}</td>
+                    <td className="py-2 tabular-nums text-slate-200">{formatLatency(row.p50Ms)}</td>
+                    <td className="py-2 tabular-nums text-slate-200">{formatLatency(row.p95Ms)}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
-          <p className="mt-3 text-xs text-gray-400">
-            统计窗口：<code className="rounded bg-gray-100 px-1 py-0.5">completed_at &gt;= NOW() - INTERVAL &#39;7 days&#39;</code> · 状态 = done
+          <p className="mt-3 text-xs text-slate-500">
+            统计窗口：<code className="rounded bg-white/5 px-1 py-0.5 text-slate-300">completed_at &gt;= NOW() - INTERVAL &#39;7 days&#39;</code> · 状态 = done
           </p>
         </section>
 
-        <section className="mt-6 rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
-          <h2 className="text-sm font-semibold text-gray-900">
+        <section className="mt-6 rounded-3xl border border-white/10 bg-white/[0.06] p-6 shadow-2xl shadow-cyan-950/25 backdrop-blur-xl">
+          <h2 className="text-sm font-bold text-white">
             合规 / 高敏操作（最近 · 最多 30 条{summary.complianceLog.length > 0 ? `，当前 ${summary.complianceLog.length}` : ''}）
           </h2>
-          <p className="mt-1 text-xs text-gray-500">
-            例：为运行关闭 CAC disclosure 的导出（<code className="rounded bg-gray-100 px-0.5">export_overrides</code>）。
-            无数据 = 未触发或尚未执行 <code className="rounded bg-gray-100 px-0.5">db:migrate:compliance</code>。
+          <p className="mt-1 text-xs text-slate-400">
+            例：为运行关闭 CAC disclosure 的导出（<code className="rounded bg-white/5 px-1 text-slate-200">export_overrides</code>）。
+            无数据 = 未触发或尚未执行 <code className="rounded bg-white/5 px-1 text-slate-200">db:migrate:compliance</code>。
           </p>
           <div className="mt-4 overflow-x-auto">
             {summary.complianceLog.length === 0 ? (
-              <p className="text-sm text-gray-400">暂无记录</p>
+              <p className="text-sm text-slate-500">暂无记录</p>
             ) : (
               <table className="w-full min-w-[640px] text-left text-sm">
-                <thead className="text-xs uppercase tracking-wide text-gray-400">
+                <thead className="text-xs uppercase tracking-[0.2em] text-cyan-200/70">
                   <tr>
                     <th className="pb-2 font-medium">时间</th>
                     <th className="pb-2 font-medium">操作</th>
@@ -227,7 +213,7 @@ export default async function AdminDashboardPage() {
                     <th className="pb-2 font-medium">说明</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-100">
+                <tbody className="divide-y divide-white/5">
                   {summary.complianceLog.map((row) => (
                     <ComplianceLogRow key={row.id} row={row} />
                   ))}
@@ -237,7 +223,7 @@ export default async function AdminDashboardPage() {
           </div>
         </section>
       </main>
-    </div>
+    </TechPageShell>
   );
 }
 
@@ -251,31 +237,27 @@ interface KpiCardProps {
 }
 
 const TONE_RING: Record<KpiCardProps['tone'], string> = {
-  good:    'border-emerald-200 bg-emerald-50',
-  warn:    'border-amber-200 bg-amber-50',
-  bad:     'border-rose-200 bg-rose-50',
-  neutral: 'border-gray-200 bg-white',
+  good:    'border-emerald-300/30 bg-emerald-400/10',
+  warn:    'border-amber-300/30 bg-amber-300/10',
+  bad:     'border-rose-300/30 bg-rose-400/10',
+  neutral: 'border-white/10 bg-white/[0.06]',
 };
 const TONE_VALUE: Record<KpiCardProps['tone'], string> = {
-  good:    'text-emerald-700',
-  warn:    'text-amber-700',
-  bad:     'text-rose-700',
-  neutral: 'text-gray-900',
+  good:    'text-emerald-200',
+  warn:    'text-amber-200',
+  bad:     'text-rose-200',
+  neutral: 'text-white',
 };
 
 function KpiCard({ label, value, sub, tone }: KpiCardProps) {
   return (
-    <div className={`rounded-xl border p-5 shadow-sm ${TONE_RING[tone]}`}>
-      <p className="text-xs uppercase tracking-wide text-gray-500">{label}</p>
-      <p className={`mt-2 text-2xl font-semibold tabular-nums ${TONE_VALUE[tone]}`}>{value}</p>
-      <p className="mt-1 text-xs text-gray-500">{sub}</p>
+    <div className={`rounded-2xl border p-5 shadow-lg shadow-cyan-950/15 backdrop-blur-xl ${TONE_RING[tone]}`}>
+      <p className="text-xs uppercase tracking-[0.2em] text-slate-400">{label}</p>
+      <p className={`mt-2 text-2xl font-bold tabular-nums ${TONE_VALUE[tone]}`}>{value}</p>
+      <p className="mt-1 text-xs text-slate-500">{sub}</p>
     </div>
   );
 }
-
-// ─── Tone helpers ─────────────────────────────────────────────────────────────
-// Mapping is conservative — KILL gate (W2-04) is 70% success, so anything
-// below that is RED on the dashboard regardless of sample size.
 
 function actionLabel(action: string): string {
   if (action === COMPLIANCE_ACTION_EXPORT_DISCLOSURE_OFF) return '关闭 AI disclosure（FCPXML）';
@@ -288,13 +270,13 @@ function ComplianceLogRow({ row }: { row: ComplianceAuditRow }) {
   const extra = typeof row.detail.topic === 'string' ? row.detail.topic : '—';
   return (
     <tr>
-      <td className="py-2 align-top text-gray-600 tabular-nums">{timeLabel}</td>
-      <td className="py-2 align-top text-gray-900">{actionLabel(row.action)}</td>
-      <td className="py-2 align-top text-gray-700">{row.userEmail}</td>
+      <td className="py-2 align-top text-slate-300 tabular-nums">{timeLabel}</td>
+      <td className="py-2 align-top text-white">{actionLabel(row.action)}</td>
+      <td className="py-2 align-top text-slate-200">{row.userEmail}</td>
       <td className="py-2 align-top">
-        <code className="rounded bg-gray-100 px-1 py-0.5 text-xs text-gray-700">{row.runId}</code>
+        <code className="rounded bg-white/5 px-1 py-0.5 text-xs text-slate-200">{row.runId}</code>
       </td>
-      <td className="py-2 align-top text-gray-600">{extra}</td>
+      <td className="py-2 align-top text-slate-300">{extra}</td>
     </tr>
   );
 }

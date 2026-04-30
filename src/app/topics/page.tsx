@@ -88,7 +88,7 @@ async function TrendingContent({ date }: { date?: string }) {
 
   if (fetchError || !result) {
     return (
-      <div className="rounded-md bg-rose-50 px-4 py-3 text-sm text-rose-700 ring-1 ring-inset ring-rose-200">
+      <div className="rounded-2xl border border-rose-300/30 bg-rose-400/10 px-4 py-3 text-sm text-rose-100">
         加载失败：{fetchError ?? '未知错误'}
       </div>
     );
@@ -124,7 +124,7 @@ async function TrendingContent({ date }: { date?: string }) {
           </div>
 
           {p.error && (
-            <div className="mb-3 rounded-md bg-amber-50 px-3 py-2 text-xs text-amber-700 ring-1 ring-inset ring-amber-200">
+            <div className="mb-3 rounded-xl border border-amber-300/30 bg-amber-300/10 px-3 py-2 text-xs text-amber-100">
               {p.error}
             </div>
           )}

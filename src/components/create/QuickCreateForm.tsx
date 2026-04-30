@@ -142,9 +142,9 @@ export function QuickCreateForm() {
           </button>
         </div>
         {result.qualityIssue && (
-          <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+          <div className="mb-4 rounded-2xl border border-amber-300/30 bg-amber-300/10 px-4 py-3 text-sm text-amber-100">
             <p className="font-medium">质量提示</p>
-            <p className="mt-0.5 text-xs text-amber-700">
+            <p className="mt-0.5 text-xs text-amber-100/75">
               {result.qualityIssue} — 内容已生成但未完全合规，建议手动调整或重新生成。
             </p>
           </div>

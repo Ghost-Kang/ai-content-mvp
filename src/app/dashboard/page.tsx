@@ -128,6 +128,15 @@ export default async function DashboardPage() {
   );
 }
 
+type LaunchTone = 'cyan' | 'violet' | 'emerald' | 'amber';
+
+const LAUNCH_GRADIENT: Record<LaunchTone, string> = {
+  cyan: 'from-cyan-300 to-blue-400',
+  violet: 'from-violet-300 to-fuchsia-400',
+  emerald: 'from-emerald-300 to-cyan-400',
+  amber: 'from-amber-200 to-orange-400',
+};
+
 function LaunchCard({
   href,
   eyebrow,
@@ -141,14 +150,9 @@ function LaunchCard({
   title: string;
   body: string;
   cta: string;
-  tone: 'cyan' | 'violet' | 'emerald' | 'amber';
+  tone: LaunchTone;
 }) {
-  const gradient: Record<typeof tone, string> = {
-    cyan: 'from-cyan-300 to-blue-400',
-    violet: 'from-violet-300 to-fuchsia-400',
-    emerald: 'from-emerald-300 to-cyan-400',
-    amber: 'from-amber-200 to-orange-400',
-  };
+  const gradient = LAUNCH_GRADIENT;
 
   return (
     <Link href={href} className="group block">

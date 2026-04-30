@@ -81,7 +81,7 @@ export function NodeActionBar({
   const anyPending = retryStep.isPending || skipStep.isPending;
 
   return (
-    <div className="border-t border-gray-100 px-4 py-2">
+    <div className="border-t border-white/10 px-4 py-2">
       <div className="flex flex-wrap items-center justify-end gap-2">
         {canEdit && (
           <button
@@ -91,7 +91,7 @@ export function NodeActionBar({
               setEditOpen(true);
             }}
             disabled={anyPending}
-            className="inline-flex items-center gap-1 rounded-md border border-indigo-200 bg-indigo-50 px-2.5 py-1 text-xs font-medium text-indigo-700 hover:bg-indigo-100 disabled:cursor-not-allowed disabled:opacity-50"
+            className="inline-flex items-center gap-1 rounded-xl border border-violet-300/30 bg-violet-300/10 px-2.5 py-1 text-xs font-medium text-violet-100 transition hover:bg-violet-300/20 disabled:cursor-not-allowed disabled:opacity-50"
           >
             编辑
           </button>
@@ -125,7 +125,7 @@ export function NodeActionBar({
       </div>
 
       {actionError && (
-        <p className="mt-2 text-xs text-rose-700">{actionError}</p>
+        <p className="mt-2 text-xs text-rose-200">{actionError}</p>
       )}
 
       {canEdit && (
@@ -162,10 +162,10 @@ function ActionButton({ label, confirmText, running, disabled, onClick, variant 
     onClick();
   };
 
-  const base = 'inline-flex items-center gap-1 rounded-md px-2.5 py-1 text-xs font-medium disabled:cursor-not-allowed disabled:opacity-50';
+  const base = 'inline-flex items-center gap-1 rounded-xl px-2.5 py-1 text-xs font-medium transition disabled:cursor-not-allowed disabled:opacity-50';
   const cls = variant === 'primary'
-    ? `${base} border border-amber-200 bg-amber-50 text-amber-800 hover:bg-amber-100`
-    : `${base} border border-gray-200 bg-white text-gray-700 hover:bg-gray-50`;
+    ? `${base} border border-amber-300/30 bg-amber-300/10 text-amber-100 hover:bg-amber-300/20`
+    : `${base} border border-white/15 bg-white/5 text-slate-200 hover:bg-white/10`;
 
   return (
     <button type="button" onClick={handleClick} disabled={disabled || running} className={cls}>
