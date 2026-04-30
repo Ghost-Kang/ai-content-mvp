@@ -81,8 +81,40 @@ export default function SignUpPage() {
               },
             }}
           />
+
+          <PiplNotice variant="signup" />
         </div>
       </main>
     </TechPageShell>
+  );
+}
+
+// PIPL（《个人信息保护法》）/ 数据安全法 合规告知。
+// 文案要素：(1) 收集什么 (2) 用于什么 (3) 存哪 (4) 用户权利。
+// MVP 阶段：仅收登录邮箱（Clerk）+ 用户主动输入的创作内容（topic / niche / 脚本）。
+function PiplNotice({ variant }: { variant: 'signup' | 'signin' }) {
+  return (
+    <div className="mt-6 max-w-md rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-[11px] leading-5 text-slate-400">
+      <p className="font-medium text-slate-300">
+        {variant === 'signup' ? '注册即表示你同意：' : '登录即表示你确认：'}
+      </p>
+      <ul className="mt-1.5 space-y-1">
+        <li>
+          • 我们仅收集 <span className="text-slate-200">登录邮箱</span> 用于账户识别，不向任何第三方出售
+        </li>
+        <li>
+          • 你输入的主题/脚本/分镜等创作内容，仅在境内 Supabase 中加密存储
+        </li>
+        <li>
+          • CN 用户的内容生成 100% 走 <span className="text-slate-200">国内大模型</span>（Kimi/通义/文心），数据不出境
+        </li>
+        <li>
+          • 你可随时通过 dashboard 联系我们删除账号及所有相关数据
+        </li>
+      </ul>
+      <p className="mt-2 text-slate-500">
+        遵循《个人信息保护法》《数据安全法》。详细政策即将上线，内测期以本声明为准。
+      </p>
+    </div>
   );
 }

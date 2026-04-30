@@ -54,6 +54,12 @@ export default function SignInPage() {
             },
           }}
         />
+
+        <p className="mt-6 max-w-sm text-center text-[11px] leading-5 text-slate-500">
+          登录即表示你确认我们按 <span className="text-slate-300">《个人信息保护法》</span> 处理登录邮箱（仅用于账户识别）；
+          你的创作内容存储在境内 Supabase。
+          <Link href="/sign-up" className="ml-1 text-cyan-300 hover:text-cyan-200">完整声明 →</Link>
+        </p>
       </main>
     </TechPageShell>
   );
