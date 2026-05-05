@@ -21,15 +21,50 @@ import { friendlyFromAny } from '@/lib/error-messages';
 const TOPIC_MIN = 2;
 const TOPIC_MAX = 300;
 
+// Trending sourceMeta param keys — match TopicCard CTA + parse-seed-input.
+// Kept flat in the URL so the page stays bookmarkable / shareable. Server
+// re-validates via parseRunSeedInput, so a tampered URL cannot corrupt
+// the persisted seed_input.
+const PLATFORMS: ReadonlyArray<'dy' | 'ks' | 'xhs' | 'bz'> = ['dy', 'ks', 'xhs', 'bz'];
+
+interface TrendingSourceMeta {
+  platform?:       'dy' | 'ks' | 'xhs' | 'bz';
+  opusId?:         string;
+  rank?:           number;
+  url?:            string;
+  authorNickname?: string;
+}
+
+function readTrendingSourceMeta(sp: URLSearchParams): TrendingSourceMeta | undefined {
+  const out: TrendingSourceMeta = {};
+  const platform = sp.get('platform');
+  if (platform && (PLATFORMS as ReadonlyArray<string>).includes(platform)) {
+    out.platform = platform as TrendingSourceMeta['platform'];
+  }
+  const opusId = sp.get('opusId');
+  if (opusId && opusId.length > 0 && opusId.length <= 120) out.opusId = opusId;
+  const rankRaw = sp.get('rank');
+  const rank = rankRaw ? Number.parseInt(rankRaw, 10) : NaN;
+  if (Number.isFinite(rank) && rank >= 1) out.rank = rank;
+  const url = sp.get('url');
+  if (url && /^https?:\/\//.test(url) && url.length <= 500) out.url = url;
+  const authorNickname = sp.get('authorNickname');
+  if (authorNickname && authorNickname.length <= 60) out.authorNickname = authorNickname;
+  return Object.keys(out).length > 0 ? out : undefined;
+}
+
 export function NewRunForm() {
   const router = useRouter();
-  // W4-06: /topics 「用这条」CTA 把候选 topic 通过 ?topic= 传过来。
-  // sourceMeta 在 MVP-1 仅显式提示 UI 是从 trending 来的，后端不存
-  // (workflow_runs 暂无 source 列；TopicNodeRunner.buildInput 仍把 source
-  // 标成 'manual')。要真存 sourceMeta 等加 schema migration。
+  // W4-06: /topics 「用这条」CTA hands off the candidate topic via URL params.
+  // Migration 005 added workflow_runs.seed_input — sourceMeta now flows
+  // through it as ParsedSeedInput.sourceMeta, consumed by TopicNodeRunner.
   const searchParams = useSearchParams();
   const initialTopic = (searchParams.get('topic') ?? '').slice(0, TOPIC_MAX);
   const fromTrending = searchParams.get('source') === 'trending';
+  // Snapshot meta at mount — searchParams is stable across renders so we
+  // could read on submit, but capturing here keeps the submit handler
+  // pure and easier to reason about during navigation.
+  const trendingSourceMeta = fromTrending ? readTrendingSourceMeta(searchParams) : undefined;
 
   const [topic, setTopic] = useState(initialTopic);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -48,7 +83,10 @@ export function NewRunForm() {
     setErrorMessage(null);
 
     try {
-      const { runId } = await createRun.mutateAsync({ topic: trimmed });
+      const { runId } = await createRun.mutateAsync({
+        topic: trimmed,
+        ...(trendingSourceMeta ? { seedInput: { sourceMeta: trendingSourceMeta } } : {}),
+      });
       // W2-07a: returns ~50ms with dispatch metadata. If QStash publish
       // fails we hear about it HERE (vs. silent console warn pre-W2-07).
       await runWorkflow.mutateAsync({ runId });

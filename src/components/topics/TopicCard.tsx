@@ -44,7 +44,21 @@ export function TopicCard({ item }: Props) {
   const useTopic = display.length > 0
     ? truncate(display, TOPIC_MAX_FOR_CTA)
     : `${item.platform}-${item.opusId}`;
-  const cta = `/runs/new?source=trending&topic=${encodeURIComponent(useTopic)}`;
+  // Trending provenance flows alongside the topic so NewRunForm can persist
+  // it into workflow_runs.seed_input.sourceMeta (consumed by TopicNodeRunner
+  // to label the run as `source: 'trending'` with platform/rank/url etc.).
+  // Migration 005 added the column; pre-005 callers safely ignored these
+  // params. Keep the param keys flat — NewRunForm reads them by name.
+  const ctaParams = new URLSearchParams({
+    source:   'trending',
+    topic:    useTopic,
+    platform: item.platform,
+    opusId:   item.opusId,
+    rank:     String(item.rank),
+  });
+  if (item.url)            ctaParams.set('url',            item.url);
+  if (item.authorNickname) ctaParams.set('authorNickname', item.authorNickname);
+  const cta = `/runs/new?${ctaParams.toString()}`;
 
   async function runAnalysis() {
     if (analyze.isPending) return;

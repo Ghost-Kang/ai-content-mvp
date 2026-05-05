@@ -145,13 +145,27 @@ export function WorkflowCanvas({ runId, pauseAutoRefresh = false }: WorkflowCanv
     stepRows.map((s) => ({ nodeType: s.nodeType as NodeType, status: s.status as StepStatus })),
   );
 
+  // Derive origin from seed_input shape so the badge stays consistent with
+  // whatever entry point fed the seam — no separate `origin` column needed.
+  const origin = deriveRunOrigin(run.seedInput);
+
   return (
     <div className="space-y-6">
       {/* ─── Run header ──────────────────────────────────────────────────────── */}
       <header className="rounded-3xl border border-white/10 bg-white/[0.06] p-5 shadow-2xl shadow-cyan-950/25 backdrop-blur-xl">
         <div className="flex items-start justify-between gap-4">
           <div className="min-w-0 flex-1">
-            <p className="text-xs uppercase tracking-[0.25em] text-cyan-200">主题</p>
+            <div className="flex flex-wrap items-center gap-2">
+              <p className="text-xs uppercase tracking-[0.25em] text-cyan-200">主题</p>
+              {origin && (
+                <span
+                  className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium ring-1 ${origin.className}`}
+                  title={origin.tooltip}
+                >
+                  {origin.label}
+                </span>
+              )}
+            </div>
             <h1 className="mt-1 truncate text-xl font-bold text-white">{run.topic}</h1>
             <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-400">
               <span>创建于 {formatRelativeTime(run.createdAt)}</span>
@@ -289,4 +303,52 @@ function RunErrorBanner({ failedNode, runErrorMsg }: RunErrorBannerProps) {
       {runErrorMsg}
     </div>
   );
+}
+
+// ─── Origin badge ────────────────────────────────────────────────────────────
+// Reads workflow_runs.seed_input shape to label where the run came from.
+// We don't introduce a separate `origin` column — the seam IS the column.
+// Order matters: sourceMeta wins over quick-create fields because trending
+// runs from /topics also carry the metadata while richer Quick Create entry
+// points may add sourceMeta later (composite origin) — keep this aligned
+// with parse-seed-input.ts when extending.
+
+interface RunOriginBadge {
+  label:     string;
+  tooltip:   string;
+  className: string;
+}
+
+function deriveRunOrigin(seedInput: unknown): RunOriginBadge | null {
+  if (!seedInput || typeof seedInput !== 'object' || Array.isArray(seedInput)) return null;
+  const o = seedInput as Record<string, unknown>;
+
+  if (o.sourceMeta && typeof o.sourceMeta === 'object') {
+    const platform = (o.sourceMeta as Record<string, unknown>).platform;
+    const platformLabel = platformDisplayName(platform);
+    return {
+      label:     `来自热门选题${platformLabel ? ` · ${platformLabel}` : ''}`,
+      tooltip:   '通过 /topics 用这条 CTA 启动',
+      className: 'bg-fuchsia-300/10 text-fuchsia-100 ring-fuchsia-300/25',
+    };
+  }
+  if (o.formula || o.lengthMode || o.coreClaim) {
+    return {
+      label:     '来自快速创作',
+      tooltip:   '通过 /create 快速创作页面启动',
+      className: 'bg-emerald-300/10 text-emerald-100 ring-emerald-300/25',
+    };
+  }
+  return null;
+}
+
+function platformDisplayName(p: unknown): string | null {
+  if (typeof p !== 'string') return null;
+  switch (p) {
+    case 'dy':  return '抖音';
+    case 'ks':  return '快手';
+    case 'xhs': return '小红书';
+    case 'bz':  return 'B站';
+    default:    return null;
+  }
 }
