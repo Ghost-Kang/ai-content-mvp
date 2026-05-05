@@ -68,13 +68,15 @@ export class TopicNodeRunner extends NodeRunner<TopicInput, TopicOutput> {
   };
 
   protected buildInput(ctx: NodeContext): TopicInput {
-    // MVP-1: workflow_runs has no source/sourceMeta column, so the only
-    // signal we get is `ctx.topic`. UI/tRPC paths that want to record
-    // a trending source can subclass this runner or extend NodeContext
-    // in a follow-up. For now, every topic that hits the runtime is
-    // labeled `manual` — sourceMeta enrichment is a known follow-up
-    // (see PROGRESS.md W4 § sourceMeta).
-    return { topic: ctx.topic, source: 'manual' };
+    // Trending provenance now flows via workflow_runs.seed_input (parsed
+    // into ctx.seedInput.sourceMeta). Manual /runs/new entries leave seed
+    // input null → falls back to source='manual' with no metadata.
+    const sourceMeta = ctx.seedInput?.sourceMeta;
+    return {
+      topic:  ctx.topic,
+      source: sourceMeta ? 'trending' : 'manual',
+      ...(sourceMeta ? { sourceMeta } : {}),
+    };
   }
 
   protected async execute(input: TopicInput): Promise<NodeResult<TopicOutput>> {

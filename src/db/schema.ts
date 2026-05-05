@@ -314,6 +314,13 @@ export const workflowRuns = pgTable(
      * in v3 UI. Example: {"aiDisclosureLabel":{"disabled":true}}.
      */
     exportOverrides:  jsonb('export_overrides').$type<Record<string, unknown> | null>(),
+    /**
+     * Optional user-supplied seed context from richer entry points (Quick
+     * Create, future templates / strategy-first). Mirrors `exportOverrides`
+     * shape — single nullable JSONB, parsed/validated server-side. See
+     * `lib/workflow/parse-seed-input.ts` for the canonical shape.
+     */
+    seedInput:        jsonb('seed_input').$type<Record<string, unknown> | null>(),
     createdAt:        timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt:        timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   },

@@ -30,8 +30,29 @@ import type { NodeType, StepStatus, WorkflowStatus } from '@/lib/workflow';
 
 // ─── Inputs ────────────────────────────────────────────────────────────────────
 
+// Optional seed payload from richer entry points (Quick Create today;
+// templates / strategy-first tomorrow). Persisted into
+// workflow_runs.seed_input verbatim — the orchestrator re-validates via
+// parseRunSeedInput so a malformed/forged value can never reach a runner.
+// Zod validation here is just a fast 400 for the obvious shape errors.
+const SeedInputSchema = z.object({
+  formula:        z.enum(['provocation', 'insight']).optional(),
+  lengthMode:     z.enum(['short', 'long']).optional(),
+  productName:    z.string().min(1).max(100).optional(),
+  targetAudience: z.string().min(1).max(200).optional(),
+  coreClaim:      z.string().min(1).max(300).optional(),
+  sourceMeta: z.object({
+    platform:       z.enum(['dy', 'ks', 'xhs', 'bz']).optional(),
+    opusId:         z.string().min(1).max(120).optional(),
+    rank:           z.number().int().min(1).optional(),
+    url:            z.string().url().max(500).optional(),
+    authorNickname: z.string().max(60).optional(),
+  }).optional(),
+}).strict();
+
 const CreateRunInput = z.object({
-  topic: z.string().min(2).max(300),
+  topic:     z.string().min(2).max(300),
+  seedInput: SeedInputSchema.optional(),
 });
 
 const RunInput = z.object({
@@ -173,6 +194,7 @@ export const workflowRouter = router({
           createdBy: ctx.userId,
           topic:     input.topic,
           status:    'pending',
+          seedInput: input.seedInput ?? null,
         })
         .returning({ id: workflowRuns.id });
 

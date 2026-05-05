@@ -3,6 +3,7 @@
 
 import type { LLMRegion } from '@/lib/llm';
 import type { AiDisclosureLabelOptions } from '@/lib/export/types';
+import type { ParsedSeedInput } from './parse-seed-input';
 
 // ─── Node taxonomy (mirrors DB enum) ──────────────────────────────────────────
 
@@ -43,6 +44,19 @@ export interface NodeContext {
     aiDisclosureLabel?: AiDisclosureLabelOptions;
     watermarkOverride?: string;
   };
+
+  /**
+   * Optional user-supplied seed context (from workflow_runs.seed_input).
+   * Populated by entry points that have richer input than just `topic` —
+   * Quick Create, future templates, strategy-first, brand-voice presets.
+   * Consumed by TopicNodeRunner (sourceMeta) and ScriptNodeRunner (formula,
+   * lengthMode, productName, targetAudience, coreClaim).
+   *
+   * Absent means: fall back to legacy defaults (treat the run as a manual
+   * topic-only entry from /runs/new). Adding new optional fields here is a
+   * non-breaking extension point — runners ignore keys they don't recognize.
+   */
+  seedInput?: ParsedSeedInput;
 
   /**
    * Outputs from earlier nodes in the run, keyed by NodeType.

@@ -10,6 +10,7 @@
 import { eq, sql } from 'drizzle-orm';
 import { db, workflowRuns, workflowSteps, monthlyUsage } from '@/db';
 import { parseRunExportOverrides } from './parse-export-overrides';
+import { parseRunSeedInput } from './parse-seed-input';
 import type { NodeRunner } from './node-runner';
 import type {
   NodeContext,
@@ -121,6 +122,7 @@ export class WorkflowOrchestrator {
       topic:    run.topic,
       upstreamOutputs: {},
       exportOverrides: parseRunExportOverrides(run.exportOverrides) ?? undefined,
+      seedInput:       parseRunSeedInput(run.seedInput) ?? undefined,
     };
 
     // ─── Resume mode (W3-06): hydrate previously-completed step outputs ────

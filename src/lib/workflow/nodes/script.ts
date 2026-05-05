@@ -33,6 +33,12 @@ export interface ScriptInput {
   lengthMode?:    LengthMode;  // default 'short' (60s)
   productName?:   string;      // default = topic
   targetAudience?: string;     // default '通用受众'
+  /**
+   * Explicit core claim from richer entry points (Quick Create). When
+   * absent, `topic` is reused as the prompt's coreClaim — matches the
+   * legacy /runs/new behavior where topic IS the claim.
+   */
+  coreClaim?:     string;
   brandVoiceNotes?: string;
 }
 
@@ -78,7 +84,20 @@ export class ScriptNodeRunner extends NodeRunner<ScriptInput, ScriptOutput> {
     // and the W1-era ScriptNodeRunner-only chain).
     const upstream = ctx.upstreamOutputs.topic as { topic?: string } | undefined;
     const topic = upstream?.topic ?? ctx.topic;
-    return { topic };
+
+    // Pull richer prompt context from workflow_runs.seed_input when the
+    // run originated from a richer entry point (Quick Create today;
+    // templates / strategy-first tomorrow). Each field is independently
+    // optional so partial seed input still augments the legacy defaults.
+    const seed = ctx.seedInput;
+    return {
+      topic,
+      ...(seed?.formula        ? { formula:        seed.formula        } : {}),
+      ...(seed?.lengthMode     ? { lengthMode:     seed.lengthMode     } : {}),
+      ...(seed?.productName    ? { productName:    seed.productName    } : {}),
+      ...(seed?.targetAudience ? { targetAudience: seed.targetAudience } : {}),
+      ...(seed?.coreClaim      ? { coreClaim:      seed.coreClaim      } : {}),
+    };
   }
 
   protected async execute(input: ScriptInput, ctx: NodeContext): Promise<NodeResult<ScriptOutput>> {
@@ -86,13 +105,14 @@ export class ScriptNodeRunner extends NodeRunner<ScriptInput, ScriptOutput> {
     const lengthMode:    LengthMode  = input.lengthMode  ?? 'short';
     const productName:   string      = input.productName ?? input.topic;
     const targetAudience: string     = input.targetAudience ?? '通用受众';
+    const coreClaim:     string      = input.coreClaim   ?? input.topic;
 
     const { systemPrompt, userPrompt } = buildScriptPrompt({
       formula,
       lengthMode,
       productName,
       targetAudience,
-      coreClaim:        input.topic,
+      coreClaim,
       brandVoiceNotes:  input.brandVoiceNotes,
     });
 
