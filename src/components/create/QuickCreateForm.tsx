@@ -3,6 +3,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { FormulaSelector } from './FormulaSelector';
 import { LengthToggle } from './LengthToggle';
 import { ScriptResult } from './ScriptResult';
@@ -14,7 +15,10 @@ import { friendlyFromAny } from '@/lib/error-messages';
 
 type Step = 'form' | 'generating' | 'result' | 'approved';
 
+const WORKFLOW_TOPIC_MAX = 300;
+
 export function QuickCreateForm() {
+  const router = useRouter();
   const [step, setStep] = useState<Step>('form');
   const [formula, setFormula] = useState<Formula | null>(null);
   const [lengthMode, setLengthMode] = useState<LengthMode>('short');
@@ -37,6 +41,9 @@ export function QuickCreateForm() {
   const createSession = trpc.content.create.useMutation();
   const generateScript = trpc.content.generateScript.useMutation();
   const approve = trpc.content.approve.useMutation();
+  const createRun = trpc.workflow.create.useMutation();
+  const runWorkflow = trpc.workflow.run.useMutation();
+  const [startingWorkflow, setStartingWorkflow] = useState(false);
 
   async function handleApprove() {
     if (!sessionId) return;
@@ -59,6 +66,49 @@ export function QuickCreateForm() {
     productName.trim().length > 0 &&
     targetAudience.trim().length > 0 &&
     coreClaim.trim().length > 0;
+
+  // Workflow handoff requires the same three fields as 生成脚本 PLUS the
+  // formula/lengthMode (so seed_input is fully populated and the workflow
+  // doesn't fall back to defaults that diverge from the user's intent).
+  const canStartWorkflow = canSubmit && !startingWorkflow;
+
+  async function handleStartWorkflow() {
+    if (!canStartWorkflow || !formula) return;
+    setStartingWorkflow(true);
+    setErrorMessage(null);
+
+    // workflow_runs.topic is NOT NULL and surfaces in /runs as the run
+    // label. Compose a human-readable summary; the actual prompt context
+    // travels through seedInput so the script node uses the structured
+    // values, not this composed string.
+    const trimmedProduct  = productName.trim();
+    const trimmedAudience = targetAudience.trim();
+    const trimmedClaim    = coreClaim.trim();
+    const topic = `面向${trimmedAudience}的${trimmedProduct}：${trimmedClaim}`.slice(
+      0,
+      WORKFLOW_TOPIC_MAX,
+    );
+
+    try {
+      const { runId } = await createRun.mutateAsync({
+        topic,
+        seedInput: {
+          formula,
+          lengthMode,
+          productName:    trimmedProduct,
+          targetAudience: trimmedAudience,
+          coreClaim:      trimmedClaim,
+        },
+      });
+      await runWorkflow.mutateAsync({ runId });
+      router.push(`/runs/${runId}`);
+    } catch (err) {
+      console.error(err);
+      const f = friendlyFromAny(err);
+      setErrorMessage(`${f.title}：${f.detail}`);
+      setStartingWorkflow(false);
+    }
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -289,6 +339,34 @@ export function QuickCreateForm() {
       >
         生成脚本
       </button>
+
+      <div className="relative flex items-center">
+        <div className="flex-grow border-t border-white/10" />
+        <span className="mx-3 text-xs text-slate-500">或</span>
+        <div className="flex-grow border-t border-white/10" />
+      </div>
+
+      <button
+        type="button"
+        onClick={handleStartWorkflow}
+        disabled={!canStartWorkflow}
+        className="inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-emerald-300/40 bg-emerald-400/10 py-3 text-sm font-semibold text-emerald-100 transition-colors hover:border-emerald-200/60 hover:bg-emerald-400/20 disabled:cursor-not-allowed disabled:border-white/10 disabled:bg-transparent disabled:text-slate-500"
+      >
+        {startingWorkflow ? (
+          <>
+            <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
+            </svg>
+            启动中…
+          </>
+        ) : (
+          '启动完整工作流（生成 .zip 视频包）'
+        )}
+      </button>
+      <p className="-mt-3 text-center text-xs text-slate-500">
+        使用相同的产品/受众/主张直接进入 5 节点工作流：选题 → 脚本 → 分镜 → 视频 → 导出 .zip
+      </p>
     </form>
   );
 }
