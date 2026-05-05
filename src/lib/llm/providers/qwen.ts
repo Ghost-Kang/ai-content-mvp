@@ -1,5 +1,5 @@
 import { BaseLLMProvider } from './base';
-import { LLMError } from '../types';
+import { LLMError, ProviderConfigError } from '../types';
 import { getProviderConfig } from '../config';
 import { randomUUID } from 'crypto';
 import type { LLMRequest, LLMResponse, LLMStreamChunk, LLMRegion } from '../types';
@@ -22,7 +22,7 @@ export class QwenProvider extends BaseLLMProvider {
   }
 
   validateConfig(): void {
-    if (!this.apiKey) throw new Error('Qwen API key not configured');
+    if (!this.apiKey) throw new ProviderConfigError('qwen', 'Qwen API key not configured');
   }
 
   async complete(request: LLMRequest): Promise<LLMResponse> {
@@ -30,7 +30,7 @@ export class QwenProvider extends BaseLLMProvider {
     const requestId = randomUUID();
 
     try {
-      const res = await fetch(`${this.baseUrl}/services/aigc/text-generation/generation`, {
+      const res = await this.fetchWithTimeout(`${this.baseUrl}/services/aigc/text-generation/generation`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

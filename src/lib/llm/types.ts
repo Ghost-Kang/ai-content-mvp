@@ -66,3 +66,17 @@ export class LLMError extends Error {
     this.name = 'LLMError';
   }
 }
+
+// Thrown by provider validateConfig() when required env vars (API keys,
+// secrets) are missing. Distinct from LLMError because it's a deployment
+// problem, not a runtime reliability signal — the fallback chain skips
+// without tripping the circuit breaker.
+export class ProviderConfigError extends Error {
+  constructor(
+    public provider: ProviderName,
+    message: string,
+  ) {
+    super(message);
+    this.name = 'ProviderConfigError';
+  }
+}

@@ -1,5 +1,5 @@
 import { BaseLLMProvider } from './base';
-import { LLMError } from '../types';
+import { LLMError, ProviderConfigError } from '../types';
 import { getProviderConfig } from '../config';
 import { randomUUID } from 'crypto';
 import type {
@@ -26,7 +26,7 @@ export class AnthropicProvider extends BaseLLMProvider {
   }
 
   validateConfig(): void {
-    if (!this.apiKey) throw new Error('Anthropic API key not configured');
+    if (!this.apiKey) throw new ProviderConfigError('anthropic', 'Anthropic API key not configured');
   }
 
   async complete(request: LLMRequest): Promise<LLMResponse> {
@@ -37,7 +37,7 @@ export class AnthropicProvider extends BaseLLMProvider {
     const userMessages = request.messages.filter((m) => m.role !== 'system');
 
     try {
-      const res = await fetch(`${this.baseUrl}/messages`, {
+      const res = await this.fetchWithTimeout(`${this.baseUrl}/messages`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -91,7 +91,7 @@ export class AnthropicProvider extends BaseLLMProvider {
 
   async healthCheck(): Promise<boolean> {
     try {
-      const res = await fetch(`${this.baseUrl}/models`, {
+      const res = await this.fetchWithTimeout(`${this.baseUrl}/models`, {
         headers: { 'x-api-key': this.apiKey, 'anthropic-version': '2023-06-01' },
       });
       return res.ok;

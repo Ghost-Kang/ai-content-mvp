@@ -1,5 +1,5 @@
 import { BaseLLMProvider } from './base';
-import { LLMError } from '../types';
+import { LLMError, ProviderConfigError } from '../types';
 import { getProviderConfig } from '../config';
 import { randomUUID } from 'crypto';
 import type {
@@ -27,7 +27,7 @@ export class OpenAIProvider extends BaseLLMProvider {
   }
 
   validateConfig(): void {
-    if (!this.apiKey) throw new Error('OpenAI API key not configured');
+    if (!this.apiKey) throw new ProviderConfigError('openai', 'OpenAI API key not configured');
   }
 
   async complete(request: LLMRequest): Promise<LLMResponse> {
@@ -35,7 +35,7 @@ export class OpenAIProvider extends BaseLLMProvider {
     const requestId = randomUUID();
 
     try {
-      const res = await fetch(`${this.baseUrl}/chat/completions`, {
+      const res = await this.fetchWithTimeout(`${this.baseUrl}/chat/completions`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -86,7 +86,7 @@ export class OpenAIProvider extends BaseLLMProvider {
 
   async healthCheck(): Promise<boolean> {
     try {
-      const res = await fetch(`${this.baseUrl}/models`, {
+      const res = await this.fetchWithTimeout(`${this.baseUrl}/models`, {
         headers: { Authorization: `Bearer ${this.apiKey}` },
       });
       return res.ok;

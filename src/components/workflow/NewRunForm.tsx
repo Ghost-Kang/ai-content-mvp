@@ -1,8 +1,8 @@
 // W3-05 — New workflow run form.  (W2-07a refactor)
 //
 // Flow:
-//   1. POST workflow.create  → returns runId   (~50ms)
-//   2. POST workflow.run     → enqueues + returns dispatch metadata (~50ms)
+//   1. POST workflow.create  → returns new or reusable runId (~50ms)
+//   2. POST workflow.run     → only when status is pending/failed
 //   3. router.push('/runs/[runId]')
 //
 // As of W2-07a `workflow.run` no longer blocks on the orchestrator —
@@ -33,6 +33,10 @@ interface TrendingSourceMeta {
   rank?:           number;
   url?:            string;
   authorNickname?: string;
+}
+
+function shouldDispatchRun(status: string): boolean {
+  return status === 'pending' || status === 'failed';
 }
 
 function readTrendingSourceMeta(sp: URLSearchParams): TrendingSourceMeta | undefined {
@@ -68,6 +72,7 @@ export function NewRunForm() {
 
   const [topic, setTopic] = useState(initialTopic);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [resumeMessage, setResumeMessage] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
   const createRun = trpc.workflow.create.useMutation();
@@ -81,15 +86,21 @@ export function NewRunForm() {
     if (!canSubmit) return;
     setSubmitting(true);
     setErrorMessage(null);
+    setResumeMessage(null);
 
     try {
-      const { runId } = await createRun.mutateAsync({
+      const { runId, resumed, status } = await createRun.mutateAsync({
         topic: trimmed,
         ...(trendingSourceMeta ? { seedInput: { sourceMeta: trendingSourceMeta } } : {}),
       });
-      // W2-07a: returns ~50ms with dispatch metadata. If QStash publish
-      // fails we hear about it HERE (vs. silent console warn pre-W2-07).
-      await runWorkflow.mutateAsync({ runId });
+      if (resumed) {
+        setResumeMessage('检测到同一主题的工作流，正在继续上次进度。');
+      }
+      if (shouldDispatchRun(status)) {
+        // W2-07a: returns ~50ms with dispatch metadata. If QStash publish
+        // fails we hear about it HERE (vs. silent console warn pre-W2-07).
+        await runWorkflow.mutateAsync({ runId });
+      }
       router.push(`/runs/${runId}`);
     } catch (err) {
       console.error(err);
@@ -133,6 +144,12 @@ export function NewRunForm() {
       {errorMessage && (
         <div className="rounded-2xl border border-rose-300/30 bg-rose-400/10 px-3 py-2 text-sm text-rose-100">
           {errorMessage}
+        </div>
+      )}
+
+      {resumeMessage && (
+        <div className="rounded-2xl border border-cyan-300/25 bg-cyan-300/10 px-3 py-2 text-sm text-cyan-100">
+          {resumeMessage}
         </div>
       )}
 

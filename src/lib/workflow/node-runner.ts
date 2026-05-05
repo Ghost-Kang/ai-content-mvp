@@ -28,6 +28,34 @@ import {
 const RETRY_BACKOFF_BASE_MS = 200;
 const RETRY_BACKOFF_CAP_MS  = 5_000;
 
+export function nodeTimeoutMs(nodeType: string): number {
+  switch (nodeType) {
+    case 'topic':      return Number(process.env.WORKFLOW_TOPIC_NODE_TIMEOUT_MS ?? 30_000);
+    case 'script':     return Number(process.env.WORKFLOW_SCRIPT_NODE_TIMEOUT_MS ?? 120_000);
+    case 'storyboard': return Number(process.env.WORKFLOW_STORYBOARD_NODE_TIMEOUT_MS ?? 120_000);
+    case 'export':     return Number(process.env.WORKFLOW_EXPORT_NODE_TIMEOUT_MS ?? 60_000);
+    case 'video':      return Number(
+      process.env.WORKFLOW_VIDEO_NODE_TIMEOUT_MS
+        ?? (process.env.WORKFLOW_VIDEO_MAX_FRAMES_PER_INVOCATION ? 290_000 : 900_000),
+    );
+    default:           return Number(process.env.WORKFLOW_NODE_TIMEOUT_MS ?? 120_000);
+  }
+}
+
+async function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
+  let timeout: ReturnType<typeof setTimeout> | undefined;
+  const timeoutPromise = new Promise<never>((_, reject) => {
+    timeout = setTimeout(() => {
+      reject(new NodeError('PROVIDER_FAILED', `${label} timed out after ${ms}ms`, true));
+    }, ms);
+  });
+  try {
+    return await Promise.race([promise, timeoutPromise]);
+  } finally {
+    if (timeout) clearTimeout(timeout);
+  }
+}
+
 export abstract class NodeRunner<I = unknown, O = unknown> {
   /** Subclass identity + retry policy. */
   abstract readonly descriptor: NodeDescriptor;
@@ -73,7 +101,18 @@ export abstract class NodeRunner<I = unknown, O = unknown> {
       const attemptStart = Date.now();
       try {
         const input = this.buildInput(ctx);
-        const result = await this.execute(input, ctx);
+        // Video runs its own per-invocation time budget (continuation marker
+        // checkpoints frames mid-flight). Wrapping it in withTimeout would
+        // race that marker — a timeout reject becomes PROVIDER_FAILED and
+        // the orchestrator never sees the marker, breaking the chain.
+        const exec = this.execute(input, ctx);
+        const result = this.descriptor.nodeType === 'video'
+          ? await exec
+          : await withTimeout(
+              exec,
+              nodeTimeoutMs(this.descriptor.nodeType),
+              `${this.descriptor.nodeType} node`,
+            );
 
         await db
           .update(workflowSteps)

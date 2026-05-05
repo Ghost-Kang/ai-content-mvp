@@ -404,6 +404,10 @@ export function NodeCard({
   const hasVideoProgress = nodeType === 'video' && !!safeGet<VideoProgressPayload>(step?.outputJson, 'progress');
   const shouldTick = !!step && (status === 'running' || (status === 'pending' && hasVideoProgress));
   const now = useNow(shouldTick);
+  // Build a progress view ONLY for active states. done/skipped/dirty/failed
+  // already render dedicated Summary or FailedSummary blocks below — adding
+  // a "100% 已完成" or "执行失败" bar on top is duplicative, and "0% 待执行"
+  // alongside a stale-output dirty summary is outright contradictory.
   const progressInfo = useMemo(() => {
     if (!step || isTopic) return null;
     if (nodeType === 'video' && (status === 'running' || hasVideoProgress)) {

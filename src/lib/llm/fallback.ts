@@ -2,7 +2,7 @@ import { resolveProviderChain } from './router';
 import { getProvider } from './factory';
 import { getCircuitBreaker } from './circuit-breaker';
 import { checkSpendCap, recordSpend } from './spend-tracker';
-import { LLMError } from './types';
+import { LLMError, ProviderConfigError } from './types';
 import type { LLMRequest, LLMResponse, ProviderName } from './types';
 
 export async function executeWithFallback(
@@ -34,15 +34,25 @@ export async function executeWithFallback(
       continue;
     }
 
-    const provider = getProvider(providerName);
-
     try {
+      const provider = getProvider(providerName);
       const response = await provider.complete(request);
       breaker.recordSuccess();
       // Fire-and-forget accounting — don't block on DB writes.
       void recordSpend(request.tenantId, response.provider, response.usage.totalTokens);
       return response;
     } catch (err) {
+      // Missing API key: this is a deployment problem, not a runtime
+      // reliability signal. Skip to the next provider WITHOUT touching the
+      // breaker — recording a failure here would burn the (still healthy)
+      // provider's budget every time the chain hits an unconfigured slot.
+      // We still record an LLMError in `errors` so the final
+      // "all providers exhausted" message is actionable.
+      if (err instanceof ProviderConfigError) {
+        errors.push(new LLMError('AUTH_FAILED', providerName, err.message, false));
+        continue;
+      }
+
       const llmError =
         err instanceof LLMError
           ? err

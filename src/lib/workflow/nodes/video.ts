@@ -469,11 +469,17 @@ export class VideoGenNodeRunner extends NodeRunner<VideoFrameInput[], VideoNodeO
     ctx:   NodeContext,
   ): Promise<VideoFrameOutput> {
     let lastErr: VideoGenError | NodeError | undefined;
+    // Only flipped on after the provider returns a content-filter error.
+    // Network/timeout retries must keep the original creative prompt —
+    // silently swapping in a generic brand-safe prompt would hand the
+    // user a video unrelated to their topic.
+    let useBrandSafePrompt = false;
 
     for (let attempt = 1; attempt <= PER_FRAME_MAX_ATTEMPTS; attempt++) {
       try {
+        const prompt = useBrandSafePrompt ? buildBrandSafePrompt(frame.prompt) : frame.prompt;
         const submit = await this.provider.submit({
-          prompt:      frame.prompt,
+          prompt,
           durationSec: frame.durationSec,
           resolution:  DEFAULT_RESOLUTION,
           tenantId:    ctx.tenantId,
@@ -482,6 +488,19 @@ export class VideoGenNodeRunner extends NodeRunner<VideoFrameInput[], VideoNodeO
         const final = await this.pollUntilTerminal(submit.jobId);
 
         if (final.status === 'failed') {
+          if (
+            isSensitiveProviderMessage(final.errorMessage)
+            && attempt < PER_FRAME_MAX_ATTEMPTS
+          ) {
+            useBrandSafePrompt = true;
+            lastErr = new NodeError(
+              'VALIDATION_FAILED',
+              `video frame ${frame.index} content filtered; retrying with brand-safe prompt`,
+              true,
+            );
+            await sleep(backoffMs(attempt));
+            continue;
+          }
           // Provider-side generation failure (e.g. the model couldn't render
           // the prompt). Treat as non-retryable — same prompt would fail again.
           throw new NodeError(
@@ -616,6 +635,27 @@ function backoffMs(attempt: number): number {
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function isSensitiveProviderMessage(message: string | undefined): boolean {
+  return /sensitive|risk_control|moderation|policy|安全|敏感|违规/i.test(message ?? '');
+}
+
+function buildBrandSafePrompt(prompt: string): string {
+  const cleaned = prompt
+    .replace(/女警|特警|警察|警服|制服|武器|枪|暴力|性感|少女/g, '普通人物')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  return [
+    cleaned || '普通人物在现代城市生活场景中自然行动',
+    '品牌安全短视频画面',
+    '日常生活氛围',
+    '无制服',
+    '无武器',
+    '无暴力',
+    '无暧昧或敏感元素',
+  ].join('，');
 }
 
 function parseVideoProgress(raw: unknown): VideoProgress | undefined {

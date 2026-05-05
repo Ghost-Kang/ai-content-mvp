@@ -100,7 +100,12 @@ export class WorkflowOrchestrator {
 
     await db
       .update(workflowRuns)
-      .set({ status: 'running' as WorkflowStatus, startedAt: new Date() })
+      .set({
+        status:      'running' as WorkflowStatus,
+        errorMsg:    null,
+        completedAt: null,
+        startedAt:   new Date(),
+      })
       .where(eq(workflowRuns.id, runId));
 
     safeFire(() =>
@@ -324,6 +329,7 @@ export class WorkflowOrchestrator {
       .update(workflowRuns)
       .set({
         status:           'done' as WorkflowStatus,
+        errorMsg:         null,
         totalCostFen,
         totalVideoCount,
         completedAt:      new Date(),

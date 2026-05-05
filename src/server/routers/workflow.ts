@@ -13,19 +13,25 @@
 
 import { z } from 'zod';
 import { TRPCError } from '@trpc/server';
-import { and, desc, eq } from 'drizzle-orm';
+import { and, desc, eq, gt } from 'drizzle-orm';
 
 import { router, tenantProcedure } from '../trpc';
 import { db, workflowRuns, workflowSteps } from '@/db';
 import {
-  buildDefaultOrchestrator,
+  buildFullOrchestrator,
   applyStepEdit,
   applyStepRetry,
   applyStepSkip,
   evaluateStepAction,
   type StepActionGuardResult,
 } from '@/lib/workflow';
-import { dispatchRun, DispatchError } from '@/lib/workflow/dispatch';
+import { dispatchRun, DispatchError, resolveDispatchMode } from '@/lib/workflow/dispatch';
+import {
+  FINGERPRINT_RESUME_WINDOW_MS,
+  areAllStepsStale,
+  findReusableRun,
+  type ReusableRunStatus,
+} from '@/lib/workflow/dedup-policy';
 import type { NodeType, StepStatus, WorkflowStatus } from '@/lib/workflow';
 
 // ─── Inputs ────────────────────────────────────────────────────────────────────
@@ -180,6 +186,63 @@ function actionVerb(a: 'edit' | 'retry' | 'skip'): string {
   return a === 'edit' ? '编辑' : a === 'retry' ? '重试' : '跳过';
 }
 
+/**
+ * Tries to revive a `running` run whose worker is presumed dead.
+ *
+ * IMPORTANT: only safe in qstash mode, where /api/workflow/run's CAS lock
+ * arbitrates between the (possibly still alive) old worker and the new
+ * dispatch. In inline mode there is no cross-process lock — the old
+ * orchestrator is just a Promise inside some other request handler, and
+ * flipping its step rows would race two in-process orchestrators on the
+ * same runId. Caller must gate by dispatch mode.
+ *
+ * Stale-decision and per-node thresholds live in dedup-policy.ts.
+ */
+async function recoverStaleRunningRun(runId: string): Promise<'running' | 'pending'> {
+  const runningSteps = await db
+    .select({
+      nodeType:  workflowSteps.nodeType,
+      updatedAt: workflowSteps.updatedAt,
+      startedAt: workflowSteps.startedAt,
+    })
+    .from(workflowSteps)
+    .where(
+      and(
+        eq(workflowSteps.runId, runId),
+        eq(workflowSteps.status, 'running'),
+      ),
+    );
+
+  if (!areAllStepsStale(runningSteps)) return 'running';
+
+  await db
+    .update(workflowSteps)
+    .set({
+      status:      'pending' as StepStatus,
+      errorMsg:    null,
+      completedAt: null,
+      updatedAt:   new Date(),
+    })
+    .where(
+      and(
+        eq(workflowSteps.runId, runId),
+        eq(workflowSteps.status, 'running'),
+      ),
+    );
+
+  await db
+    .update(workflowRuns)
+    .set({
+      status:      'pending' as WorkflowStatus,
+      errorMsg:    null,
+      completedAt: null,
+      updatedAt:   new Date(),
+    })
+    .where(eq(workflowRuns.id, runId));
+
+  return 'pending';
+}
+
 // ─── Router ───────────────────────────────────────────────────────────────────
 
 export const workflowRouter = router({
@@ -187,6 +250,54 @@ export const workflowRouter = router({
   create: tenantProcedure
     .input(CreateRunInput)
     .mutation(async ({ ctx, input }) => {
+      // Fingerprint dedup: only protects against accidental double-submit
+      // within a recent window. Beyond the window OR for already-done runs,
+      // create a fresh run — re-clicking "create" on a topic the user
+      // generated last week clearly means "give me a new take", not "open
+      // the old result". `cancelled` is excluded because the user already
+      // chose to abandon it.
+      const cutoff = new Date(Date.now() - FINGERPRINT_RESUME_WINDOW_MS);
+      const recentRuns = await db
+        .select({
+          id:        workflowRuns.id,
+          topic:     workflowRuns.topic,
+          status:    workflowRuns.status,
+          seedInput: workflowRuns.seedInput,
+        })
+        .from(workflowRuns)
+        .where(
+          and(
+            eq(workflowRuns.tenantId, ctx.tenantId),
+            eq(workflowRuns.createdBy, ctx.userId),
+            gt(workflowRuns.createdAt, cutoff),
+          ),
+        )
+        .orderBy(desc(workflowRuns.createdAt))
+        .limit(50);
+
+      const reusableRun = findReusableRun(
+        recentRuns.map((r) => ({ ...r, status: r.status as ReusableRunStatus })),
+        input,
+      );
+
+      if (reusableRun) {
+        // Stale-recovery flips `running` → `pending` and clears step rows
+        // so the next dispatch can take over. Only safe when the worker
+        // route's CAS lock will arbitrate against the (possibly still
+        // alive) prior worker. In inline mode there's no such lock —
+        // leave the run alone and let the user wait or cancel manually.
+        let status: WorkflowStatus = reusableRun.status as WorkflowStatus;
+        if (status === 'running' && resolveDispatchMode() === 'qstash') {
+          status = await recoverStaleRunningRun(reusableRun.id);
+        }
+
+        return {
+          runId:   reusableRun.id,
+          resumed: true,
+          status,
+        };
+      }
+
       const [run] = await db
         .insert(workflowRuns)
         .values({
@@ -196,9 +307,9 @@ export const workflowRouter = router({
           status:    'pending',
           seedInput: input.seedInput ?? null,
         })
-        .returning({ id: workflowRuns.id });
+        .returning({ id: workflowRuns.id, status: workflowRuns.status });
 
-      return { runId: run.id };
+      return { runId: run.id, resumed: false, status: run.status };
     }),
 
   // W2-07a — Enqueues the run instead of executing inline.
@@ -216,9 +327,8 @@ export const workflowRouter = router({
   // lock to prevent unauthorized dispatch (an attacker would need both
   // a valid runId AND a way to publish to QStash, which uses our token).
   //
-  // `buildDefaultOrchestrator` is intentionally still imported so the
-  // legacy synchronous test path keeps compiling — it'll be retired once
-  // dispatch is exercised end-to-end in CI.
+      // The legacy synchronous test path uses the full pipeline too; otherwise
+      // a sync run can incorrectly stop at storyboard and mark the run done.
   run: tenantProcedure
     .input(RunInput)
     .mutation(async ({ ctx, input }) => {
@@ -286,7 +396,7 @@ export const workflowRouter = router({
         });
       }
 
-      const orchestrator = buildDefaultOrchestrator();
+      const orchestrator = buildFullOrchestrator();
       const result = await orchestrator.run(input.runId);
       return result;
     }),

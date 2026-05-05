@@ -1,5 +1,5 @@
 import { BaseLLMProvider } from './base';
-import { LLMError } from '../types';
+import { LLMError, ProviderConfigError } from '../types';
 import { getProviderConfig } from '../config';
 import { randomUUID } from 'crypto';
 import type { LLMRequest, LLMResponse, LLMStreamChunk, LLMRegion } from '../types';
@@ -24,7 +24,7 @@ export class ErnieProvider extends BaseLLMProvider {
   }
 
   validateConfig(): void {
-    if (!this.apiKey) throw new Error('ERNIE API key not configured');
+    if (!this.apiKey) throw new ProviderConfigError('ernie', 'ERNIE API key not configured');
   }
 
   private async ensureAccessToken(): Promise<string> {
@@ -34,7 +34,7 @@ export class ErnieProvider extends BaseLLMProvider {
 
     // ERNIE uses a separate OAuth token endpoint
     const [apiKey, secretKey] = this.apiKey.split(':');
-    const res = await fetch(
+    const res = await this.fetchWithTimeout(
       `https://aip.baidubce.com/oauth/2.0/token?grant_type=client_credentials&client_id=${apiKey}&client_secret=${secretKey}`,
       { method: 'POST' },
     );
@@ -69,7 +69,7 @@ export class ErnieProvider extends BaseLLMProvider {
         body.system = systemMessage.content;
       }
 
-      const res = await fetch(endpoint, {
+      const res = await this.fetchWithTimeout(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),

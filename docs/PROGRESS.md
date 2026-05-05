@@ -1,9 +1,9 @@
 # PROGRESS — AI 短视频内容工作流平台 (v3.0 PIVOT)
 
-**Last updated**: 2026-04-30 晚（落地页动画 + 全栈深色统一 + 项目级审计 + 测试基础设施 + 工程链全绿）
-**Resume point**: 🟢 **当前基线：`ca5896e` · main 已 push origin**。所有工程链 done；UI 全部统一到深色 tech 主题；落地页有 5 节点 SVG pipeline 动画 + 显性登录注册；项目级审计 14 项发现已修 6（doc 在 `docs/AUDIT-2026-04-30.md`）；vitest 接通 + 41 个核心单测全绿。
+**Last updated**: 2026-05-05 晚（Same-Topic Resume + 架构 review 加固 + 测试覆盖 58 → 85）
+**Resume point**: 🟢 **当前工作树：`452f483` 之后新增 Same-Topic Resume + 架构 review 一批加固，待 commit/push**。`pnpm typecheck`、`pnpm vitest run`（10 文件 / 85 测试）全绿；`workflow_runs.seed_input` 迁移已确认存在；最新已部署 production 仍是 `452f483`：`https://ai-content-aztgudh3e-ai-content-mvp.vercel.app`，`/api/healthz` 200。下一步：浏览器手 smoke + preview 部署验。
 **Launch target**: **2026-05-15 Friday**（per LAUNCH_CHECKLIST，16 天后；不是 6-week 计划）
-**Current phase**: 🟢 **W5 launch 收尾** — 工程零阻塞，剩 4 件：production deploy + healthz、3 seed user 邀请发出、CAC 10 样本人工核验、PIPL 文案补。RLS 真启用准备已就绪，等运维在 Supabase 跑迁移（job `bd1d731a` + 文档 2026-05-14 复审）。
+**Current phase**: 🟢 **W5 launch 收尾** — production deploy + healthz 已完成；剩：3 seed user 邀请发出、CAC 10 样本人工核验、PIPL 文案补、PostHog v3 看板确认、移动端人工复查。RLS 真启用准备已就绪，等运维在 Supabase 跑迁移（job `bd1d731a` + 文档 2026-05-14 复审）。
 
 **W4-01 / 新榜 真实情况（2026-04-26 probe 结论）**：
 - **Client 层（不改）**：
@@ -100,6 +100,47 @@
 - ✅ #10 测试基础设施：装 vitest + `pnpm test` 接通 + 41 个核心单测（is-admin / cascade-rules / router 合规 / analytics 脱敏 / spend-cap）
 - 🟡 #1 RLS 真启用：准备工作 done（`drizzle/0004_rls_app_role.sql` + `withTenant` helper + `docs/RLS-CUTOVER.md`），等运维在 Supabase 跑 GRANT/REVOKE + 切 `DATABASE_URL_APP`；session-scheduled job `bd1d731a` 排到 2026-05-14 复审 + 文档头部 pin 双兜底
 
+**2026-05-05 launch 收口（commits `d146f67` / `378b9ad` / `452f483`）**：
+- ✅ `seed_input` 入库缝合：`workflow_runs.seed_input` JSONB 列 + parser + workflow create 接入；迁移 `pnpm db:migrate:seed-input` 已跑，数据库提示列已存在并跳过。
+- ✅ Quick Create 不再停在 legacy 入口：提交后把 formula / lengthMode / productName / targetAudience / coreClaim hand off 到 5 节点 workflow。
+- ✅ Trending provenance 补齐：`TopicCard` → `NewRunForm` → `WorkflowCanvas` 传递并展示 source/sourceMeta，运行页可见平台、排名、作者等来源 badge。
+- ✅ 发版校验：`pnpm typecheck`、`pnpm lint`、`pnpm test`（52/52）、`pnpm build` 全绿。
+- ✅ Git auto deploy：`452f483` 已 push `origin/main`，Vercel production deployment success；`/api/healthz`、`/`、`/sign-in` 均 200，`/topics`、`/runs/new` 正确跳转 sign-in。
+
+**2026-05-05 Same-Topic Workflow Resume（待 commit/push）**：
+- ✅ 新增 `src/lib/workflow/run-fingerprint.ts`：按 topic + seedInput 生成稳定指纹；中文空白/标点空白规范化；trending 以 `platform:opusId` 作为作品身份，Quick Create 以 formula / lengthMode / productName / targetAudience / coreClaim 作为结构化身份。
+- ✅ `workflow.create` 改为先查当前 tenant/user 最近 50 条 run；同指纹且未 cancelled 时复用旧 `runId`，返回 `resumed/status`；否则才插入新 `workflow_runs`。
+- ✅ `/runs/new` 与 Quick Create 入口按旧 run 状态分流：`pending/failed` 补发 dispatch；`running/done` 直接进入旧 run，依赖 orchestrator 已有 hydrate-and-skip 从断点继续。
+- ✅ 卡住修复：`NodeRunner` 增加节点级硬超时（script/storyboard 默认 120s），LLM provider 初始化错误纳入 fallback 捕获，stale running 复用阈值收紧到 90s；orchestrator 重新运行/成功完成时清理旧 `errorMsg/completedAt`，避免 UI 留历史失败。
+- ✅ 测试：新增 fingerprint + NodeRunner timeout 单测；`pnpm typecheck`、`pnpm lint`、`pnpm test`（58/58）、`pnpm build` 全绿；本地 production server route sanity：`/api/healthz`、`/runs` 200；问题 run 的 topic/script/storyboard sanity run 已跑到 `done`。
+- ⚠️ 当前版本是 exact-input memory，不做语义相似合并；并发强一致后续可把 fingerprint 落 DB 列 + partial unique index。
+
+**2026-05-05 架构 review 加固（同日，待 commit）**：
+
+针对上面 Same-Topic Workflow Resume 一批改动做架构层走查，发现并修复 8 项问题：
+
+- 🔴 **P0 并发**：`recoverStaleRunningRun` 在 inline 模式下没有跨进程 lock — 用户 90s 后再提交同 prompt 会启动第二个 `buildFullOrchestrator`，两个进程同时写 step 行 + bump monthly_usage。修复：`workflow.create` 检测到 `running` 状态时只在 `resolveDispatchMode() === 'qstash'` 才走 stale 恢复，inline 直接返回 `running` 让用户等。
+- 🔴 **P0 阈值**：原 90s stale 阈值小于 script/storyboard 自身 120s timeout — 正在跑的 LLM 节点会先被 stale 判定踢回 pending，再被 worker 写 `done` 失败。修复：阈值绑死 `nodeTimeoutMs(nodeType) + 60s slack`，floor=240s（4 min）。
+- 🟠 **P1 prompt 重写**：`renderOneFrameWithRetry` 的 attempt≥2 无差别用 `buildBrandSafePrompt` — 网络抖动 retry 也会把用户创意 prompt 替换成"普通人物在现代城市生活场景中自然行动"。修复：只在 `isSensitiveProviderMessage(final.errorMessage)` 触发的 retry 才用 brand-safe。
+- 🟠 **P1 fingerprint resume 没时间窗 + done 也复用**：1 个月前的同 prompt done run 会被误路由。修复：SQL 加 `gt(createdAt, NOW() - 24h)`、`findReusableRun` 排除 `done`/`cancelled`。
+- 🟠 **P2 video 误吞 continuation marker**：`withTimeout` 290s 会先于内部 marker 抛出，把 marker 转成 `PROVIDER_FAILED` 终止链。修复：video 节点完全跳过 `withTimeout`，靠自身 `WORKFLOW_VIDEO_MAX_FRAMES_PER_INVOCATION` 时间预算 + marker 续跑。
+- 🟠 **P2 NodeCard 渲染重叠**：done/dirty/failed 节点会同时渲染 ProgressBlock + Summary（`dirty` 显示"0% 待执行"同时有 stale output 摘要）。修复：`progressInfo` memo 收回到只在 running / video-progress 构造。
+- 🟠 **P2 ProviderConfigError 不踩熔断**：缺 API key 的 provider 走 fallback catch 会调 `breaker.recordFailure` — 配置问题被错记为可靠性问题。修复：新建 `ProviderConfigError`，5 个 provider `validateConfig` 改抛它；`fallback.ts` 识别到则跳过 `recordFailure`，继续下一 provider。
+
+**为可测性抽象**：把 router 里的 `findReusableRun` / `staleThresholdMs` / `areAllStepsStale` 抽到 `src/lib/workflow/dedup-policy.ts`（pure module），router 改为 import。
+
+**测试加固**：
+- 新增 `src/lib/workflow/dedup-policy.test.ts`（19 断言：findReusableRun 状态过滤 / 指纹相等 / staleThreshold floor + nodeTimeout 派生 / areAllStepsStale 各种 edge case）
+- 新增 `src/lib/llm/fallback.test.ts`（6 断言：ProviderConfigError 跳过不踩 breaker / 全链都没配 → 可读错误 / 真 LLMError 仍踩 breaker / 不可重试 LLMError 立即抛 / spend cap 提前阻断）
+- 扩 `src/lib/workflow/node-runner.test.ts`：加 video 跳过 withTimeout 断言
+
+**发版校验**：`pnpm typecheck`、`pnpm vitest run`（10 文件 / 85 测试，从 58 → 85）全绿；UI 手测留给 commit 后下一步。
+
+**仍未做（按性价比延后）**：
+- P1-2 brand-safe 正则改写（等 seed user 真触发再判）
+- P3 monthly_usage 回退（已计费 API 是否回滚账面，语义需先想清楚）
+- AbortSignal 串到 `NodeRunner.execute`（孤儿 fetch 一次 = 一条 LLM call 成本，等真有 case 再做）
+
 **发布前 QA checklist（当前 UI 基线）**：
 - [x] 登录/注册 → `/dashboard`（代码层强制 redirect）
 - [x] Dashboard 聚合入口：`/topics`、`/runs/new`、`/create`、`/runs`
@@ -109,6 +150,8 @@
 - [x] 移动端显性风险修复：header 小屏不挤；`/runs/new` CTA 小屏不挤
 - [ ] 移动端人工复查（建议 360px / 390px / 430px）：dashboard、topics、runs/new、workflow detail、export 下载按钮
 - [x] 真 17 帧回归（成本 ¥8.05）：17 段视频 + export 全 done；总耗时 662.2s，单 invocation 仍超 300s，线上必须走 continuation
+- [x] Production 自动部署 + healthz：`452f483` Vercel production success，`/api/healthz` 200
+- [x] Same-topic resume 记忆续跑：同一用户同一规范化输入复用旧 run，`pending/failed` 续调度，`running/done` 直接打开旧 run
 - [ ] PostHog v3 事件看板确认：登录、选题、工作流启动、节点完成、导出下载事件是否仍可读
 
 **LLM router CN 合规修复（2026-04-27，commit `409dd89`）**：

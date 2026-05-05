@@ -17,6 +17,10 @@ type Step = 'form' | 'generating' | 'result' | 'approved';
 
 const WORKFLOW_TOPIC_MAX = 300;
 
+function shouldDispatchRun(status: string): boolean {
+  return status === 'pending' || status === 'failed';
+}
+
 export function QuickCreateForm() {
   const router = useRouter();
   const [step, setStep] = useState<Step>('form');
@@ -37,6 +41,7 @@ export function QuickCreateForm() {
     qualityIssue: string | null;
   } | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [resumeMessage, setResumeMessage] = useState<string | null>(null);
 
   const createSession = trpc.content.create.useMutation();
   const generateScript = trpc.content.generateScript.useMutation();
@@ -76,6 +81,7 @@ export function QuickCreateForm() {
     if (!canStartWorkflow || !formula) return;
     setStartingWorkflow(true);
     setErrorMessage(null);
+    setResumeMessage(null);
 
     // workflow_runs.topic is NOT NULL and surfaces in /runs as the run
     // label. Compose a human-readable summary; the actual prompt context
@@ -90,7 +96,7 @@ export function QuickCreateForm() {
     );
 
     try {
-      const { runId } = await createRun.mutateAsync({
+      const { runId, resumed, status } = await createRun.mutateAsync({
         topic,
         seedInput: {
           formula,
@@ -100,7 +106,12 @@ export function QuickCreateForm() {
           coreClaim:      trimmedClaim,
         },
       });
-      await runWorkflow.mutateAsync({ runId });
+      if (resumed) {
+        setResumeMessage('检测到同一组输入的工作流，正在继续上次进度。');
+      }
+      if (shouldDispatchRun(status)) {
+        await runWorkflow.mutateAsync({ runId });
+      }
       router.push(`/runs/${runId}`);
     } catch (err) {
       console.error(err);
@@ -279,6 +290,11 @@ export function QuickCreateForm() {
         <div className="rounded-2xl border border-rose-300/30 bg-rose-400/10 px-4 py-3 text-sm text-rose-100">
           <p className="font-medium">生成失败</p>
           <p className="mt-0.5 text-xs text-rose-100/75">{errorMessage}</p>
+        </div>
+      )}
+      {resumeMessage && (
+        <div className="rounded-2xl border border-emerald-300/30 bg-emerald-400/10 px-4 py-3 text-sm text-emerald-100">
+          {resumeMessage}
         </div>
       )}
       <LengthToggle value={lengthMode} onChange={setLengthMode} />
