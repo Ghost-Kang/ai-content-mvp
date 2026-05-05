@@ -22,16 +22,33 @@ export default function SignUpPage() {
       </header>
 
       <main className="grid min-h-[calc(100vh-4rem)] gap-12 px-4 py-10 lg:grid-cols-[1fr_1fr] lg:px-12">
-        <aside className="hidden flex-col justify-center lg:flex">
-          <h1 className="text-4xl font-black tracking-tight text-white sm:text-5xl">
-            从主题到剪映包，
-            <span className="block bg-gradient-to-r from-cyan-200 via-fuchsia-200 to-emerald-200 bg-clip-text text-transparent">
-              一条工作流跑完。
+        <aside className="hidden flex-col justify-start pt-6 lg:flex">
+          {/* 主标题 — 与落地页 hero 保持一致：定位副标题 */}
+          <h2 className="text-base font-semibold text-slate-200 sm:text-lg lg:text-xl">
+            用数据驱动的 AI 视频创作平台
+          </h2>
+
+          {/* 三行金句 — 与落地页 hero 一致 */}
+          <p className="mt-5 text-3xl font-black leading-[1.1] tracking-tight text-white sm:text-4xl lg:text-5xl">
+            <span className="block">别拍脑袋，</span>
+            <span className="block">
+              <span className="bg-gradient-to-r from-cyan-200 via-fuchsia-200 to-emerald-200 bg-clip-text text-transparent">
+                数据找爆点
+              </span>
+              ，
             </span>
-          </h1>
-          <p className="mt-5 max-w-md text-base leading-7 text-slate-300">
-            注册即可开始 5 节点视频工作流：抓热点 → 写脚本 → 拆分镜 → 生成视频 → 导出剪映 draft。
+            <span className="mt-1 flex flex-wrap items-baseline gap-x-2">
+              AI
+              <BeatingHeart />
+              一键成片。
+            </span>
           </p>
+
+          <p className="mt-6 max-w-md text-base leading-7 text-slate-300 sm:text-lg sm:leading-8">
+            告别在 ChatGPT、CapCut、Midjourney 之间来回复制。
+            输入主题 → <span className="font-semibold text-white">12 分钟</span> 拿到剪映可直接发布的素材包。
+          </p>
+
           <ul className="mt-8 space-y-3 text-sm text-slate-300">
             {[
               '免信用卡，立即体验',
@@ -116,5 +133,33 @@ function PiplNotice({ variant }: { variant: 'signup' | 'signin' }) {
         遵循《个人信息保护法》《数据安全法》。详细政策即将上线，内测期以本声明为准。
       </p>
     </div>
+  );
+}
+
+// ─── Beating heart ────────────────────────────────────────────────────
+//
+// SVG heart with the lub-dub heartbeat keyframe + a synced glow halo.
+// Inline-baseline aligned so it sits in the middle of the text run.
+// Mirrors the landing page hero so sign-up reads as the same brand voice.
+function BeatingHeart() {
+  return (
+    <span
+      role="img"
+      aria-label="爱心跳动"
+      className="relative inline-flex translate-y-[-0.05em] items-center justify-center"
+    >
+      <span
+        aria-hidden
+        className="absolute h-[1.2em] w-[1.2em] rounded-full bg-rose-400/35 blur-xl motion-safe:animate-heart-glow"
+      />
+      <svg
+        viewBox="0 0 24 24"
+        className="relative h-[0.95em] w-[0.95em] text-rose-400 motion-safe:animate-heartbeat motion-safe:[transform-box:fill-box] motion-safe:[transform-origin:center]"
+        fill="currentColor"
+        aria-hidden
+      >
+        <path d="M12 21s-7.5-4.6-9.5-10.2C1 7 4 3.5 7.5 3.5c2 0 3.6 1 4.5 2.5.9-1.5 2.5-2.5 4.5-2.5 3.5 0 6.5 3.5 5 7.3C19.5 16.4 12 21 12 21z" />
+      </svg>
+    </span>
   );
 }
