@@ -29,7 +29,7 @@
 
 'use client';
 
-import { useId, useMemo, useState } from 'react';
+import { useId, useMemo, useRef, useState } from 'react';
 import {
   DndContext,
   type DragEndEvent,
@@ -170,6 +170,78 @@ function DragHandle({ attributes, listeners, setActivatorNodeRef, disabled }: Dr
   );
 }
 
+// ─── Nav toolbar (jump + expand/collapse all) ────────────────────────────────
+//
+// 17 frames × 5 fields each = ~85 input rows in one dialog. Without
+// collapse + jump the user spends most of their time scrolling. The toolbar
+// lives ABOVE the per-frame list and the metric summary (which stays for
+// content-quality feedback like total char count or camera variety).
+
+interface FrameNavToolbarProps {
+  totalFrames:    number;
+  expandedCount:  number;
+  onJump:         (frameNumber: number) => void;
+  onExpandAll:    () => void;
+  onCollapseAll:  () => void;
+  disabled?:      boolean;
+}
+
+function FrameNavToolbar({
+  totalFrames, expandedCount, onJump, onExpandAll, onCollapseAll, disabled,
+}: FrameNavToolbarProps) {
+  const [val, setVal] = useState('');
+  function submit(e: React.FormEvent) {
+    e.preventDefault();
+    const n = Number.parseInt(val, 10);
+    if (Number.isFinite(n)) onJump(n);
+    setVal('');
+  }
+  return (
+    <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-white/10 bg-white/[0.03] px-3 py-2 text-xs text-slate-300">
+      <form onSubmit={submit} className="flex items-center gap-1">
+        <label htmlFor="frame-jump-input" className="text-slate-400">跳转到</label>
+        <input
+          id="frame-jump-input"
+          type="number"
+          min={1}
+          max={totalFrames}
+          value={val}
+          onChange={(e) => setVal(e.target.value)}
+          placeholder={`1-${totalFrames}`}
+          disabled={disabled}
+          className="w-20 rounded-lg border border-white/15 bg-slate-950/70 px-2 py-1 text-xs text-white placeholder:text-slate-500 focus:border-cyan-300/60 focus:outline-none focus:ring-1 focus:ring-cyan-300/40 disabled:opacity-50"
+        />
+        <button
+          type="submit"
+          disabled={disabled || !val}
+          className="rounded-lg border border-white/15 bg-white/5 px-2 py-1 text-[11px] text-slate-200 hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          前往
+        </button>
+      </form>
+      <span className="ml-auto whitespace-nowrap text-[11px] text-slate-400">
+        已展开 <strong className="text-slate-200">{expandedCount}</strong>/{totalFrames}
+      </span>
+      <button
+        type="button"
+        onClick={onExpandAll}
+        disabled={disabled}
+        className="rounded-lg border border-white/15 bg-white/5 px-2 py-1 text-[11px] text-slate-200 hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-50"
+      >
+        全部展开
+      </button>
+      <button
+        type="button"
+        onClick={onCollapseAll}
+        disabled={disabled}
+        className="rounded-lg border border-white/15 bg-white/5 px-2 py-1 text-[11px] text-slate-200 hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-50"
+      >
+        全部折叠
+      </button>
+    </div>
+  );
+}
+
 // ─── Script editor ────────────────────────────────────────────────────────────
 
 interface ScriptFrameEditorProps {
@@ -191,13 +263,46 @@ export function ScriptFrameEditor({ frames, onChange, disabled }: ScriptFrameEdi
   // so passing [0..N-1] both before and after a reorder works correctly.
   const itemIds = useMemo(() => frames.map((_, i) => i), [frames]);
 
+  // Expanded set tracked by position index. Structural mutations (insert/
+  // delete/move/dnd) reset the set since positions get permuted; tracking
+  // through a permutation isn't worth the complexity for an MVP — the user
+  // re-expanding what they want is acceptable. `onPatch` (text/dur/etc.)
+  // does NOT touch the set, so editing within an expanded card is stable.
+  const [expandedSet, setExpandedSet] = useState<Set<number>>(new Set());
+  const cardRefs = useRef<Array<HTMLDivElement | null>>([]);
+
+  function applyStructural(next: ScriptFrameShape[], expandIdx?: number) {
+    onChange(next);
+    if (expandIdx !== undefined) {
+      setExpandedSet(new Set([expandIdx]));
+      // Defer scroll until React has flushed the new card to the DOM.
+      setTimeout(() => cardRefs.current[expandIdx]?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50);
+    } else {
+      setExpandedSet(new Set());
+    }
+  }
+  function toggleExpanded(idx: number) {
+    setExpandedSet((prev) => {
+      const next = new Set(prev);
+      if (next.has(idx)) next.delete(idx);
+      else next.add(idx);
+      return next;
+    });
+  }
+  function jumpTo(n: number) {
+    const idx = n - 1;
+    if (idx < 0 || idx >= frames.length) return;
+    setExpandedSet((prev) => new Set([...prev, idx]));
+    setTimeout(() => cardRefs.current[idx]?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50);
+  }
+
   function handleDragEnd(event: DragEndEvent) {
     const { active, over } = event;
     if (!over || active.id === over.id) return;
     const fromPos = Number(active.id);
     const toPos   = Number(over.id);
     if (Number.isNaN(fromPos) || Number.isNaN(toPos)) return;
-    onChange(moveFrameTo(frames, fromPos, toPos));
+    applyStructural(moveFrameTo(frames, fromPos, toPos));
   }
 
   return (
@@ -218,6 +323,15 @@ export function ScriptFrameEditor({ frames, onChange, disabled }: ScriptFrameEdi
         </span>
       </div>
 
+      <FrameNavToolbar
+        totalFrames={frames.length}
+        expandedCount={expandedSet.size}
+        onJump={jumpTo}
+        onExpandAll={() => setExpandedSet(new Set(frames.map((_, i) => i)))}
+        onCollapseAll={() => setExpandedSet(new Set())}
+        disabled={disabled}
+      />
+
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
         <SortableContext items={itemIds} strategy={verticalListSortingStrategy}>
           <div className="space-y-3">
@@ -225,16 +339,19 @@ export function ScriptFrameEditor({ frames, onChange, disabled }: ScriptFrameEdi
               <SortableShell key={`${frame.index}-${idx}`} id={idx} disabled={disabled ?? false}>
                 {(handle) => (
                   <ScriptFrameCard
+                    cardRef={(el) => { cardRefs.current[idx] = el; }}
+                    isExpanded={expandedSet.has(idx)}
+                    onToggle={() => toggleExpanded(idx)}
                     frame={frame}
                     position={idx}
                     total={frames.length}
                     disabled={disabled}
                     handle={handle}
                     onPatch={(patch) => onChange(patchFrame(frames, idx, patch))}
-                    onMoveUp={() => onChange(moveFrame(frames, idx, -1))}
-                    onMoveDown={() => onChange(moveFrame(frames, idx, 1))}
-                    onDelete={() => onChange(deleteFrameAt(frames, idx))}
-                    onInsertAbove={() => onChange(insertFrameAt(frames, idx, makeEmptyScriptFrame(0)))}
+                    onMoveUp={() => applyStructural(moveFrame(frames, idx, -1))}
+                    onMoveDown={() => applyStructural(moveFrame(frames, idx, 1))}
+                    onDelete={() => applyStructural(deleteFrameAt(frames, idx))}
+                    onInsertAbove={() => applyStructural(insertFrameAt(frames, idx, makeEmptyScriptFrame(0)), idx)}
                   />
                 )}
               </SortableShell>
@@ -246,7 +363,7 @@ export function ScriptFrameEditor({ frames, onChange, disabled }: ScriptFrameEdi
       <button
         type="button"
         disabled={disabled}
-        onClick={() => onChange(insertFrameAt(frames, frames.length, makeEmptyScriptFrame(0)))}
+        onClick={() => applyStructural(insertFrameAt(frames, frames.length, makeEmptyScriptFrame(0)), frames.length)}
         className="flex w-full items-center justify-center gap-1 rounded-2xl border border-dashed border-white/15 bg-white/[0.04] px-3 py-2 text-xs text-slate-400 transition hover:border-cyan-300/40 hover:bg-cyan-300/5 hover:text-cyan-100 disabled:cursor-not-allowed disabled:opacity-50"
       >
         + 添加新帧到末尾
@@ -263,11 +380,14 @@ interface SortableHandle {
 }
 
 interface ScriptFrameCardProps {
-  frame:    ScriptFrameShape;
-  position: number;
-  total:    number;
-  disabled?: boolean;
-  handle:   SortableHandle;
+  frame:      ScriptFrameShape;
+  position:   number;
+  total:      number;
+  disabled?:  boolean;
+  handle:     SortableHandle;
+  isExpanded: boolean;
+  onToggle:   () => void;
+  cardRef:    React.RefCallback<HTMLDivElement>;
   onPatch:        (patch: Partial<ScriptFrameShape>) => void;
   onMoveUp:       () => void;
   onMoveDown:     () => void;
@@ -276,7 +396,7 @@ interface ScriptFrameCardProps {
 }
 
 function ScriptFrameCard({
-  frame, position, total, disabled, handle,
+  frame, position, total, disabled, handle, isExpanded, onToggle, cardRef,
   onPatch, onMoveUp, onMoveDown, onDelete, onInsertAbove,
 }: ScriptFrameCardProps) {
   const id = useId();
@@ -287,70 +407,94 @@ function ScriptFrameCard({
   const markBlurred = (key: keyof ScriptFrameShape) =>
     setBlurred((prev) => (prev.has(key) ? prev : new Set([...prev, key])));
 
+  const trimmed = frame.text.trim();
+  const previewText = trimmed.length > 0 ? trimmed.slice(0, 28) : '（空）';
+  const truncated = trimmed.length > 28;
+
   return (
-    <div className="rounded-2xl border border-white/10 bg-slate-950/60 p-3 shadow-lg shadow-cyan-950/20 backdrop-blur-xl">
+    <div
+      ref={cardRef}
+      className="rounded-2xl border border-white/10 bg-slate-950/60 p-3 shadow-lg shadow-cyan-950/20 backdrop-blur-xl"
+    >
       <FrameCardHeader
         label={`第 ${frame.index} 帧`}
         position={position}
         total={total}
         disabled={disabled}
         handle={handle}
+        isExpanded={isExpanded}
+        onToggle={onToggle}
         onMoveUp={onMoveUp}
         onMoveDown={onMoveDown}
         onDelete={onDelete}
         onInsertAbove={onInsertAbove}
       />
 
-      <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-3">
-        <div className="sm:col-span-2">
-          <label htmlFor={`${id}-text`} className="block text-[11px] font-medium text-slate-300">
-            口播文案 <span className="text-slate-500">({charCount} 字 · 建议 8-15)</span>
-          </label>
-          <textarea
-            id={`${id}-text`}
-            value={frame.text}
-            disabled={disabled}
-            rows={2}
-            onChange={(e) => onPatch({ text: e.target.value })}
-            onBlur={() => markBlurred('text')}
-            aria-invalid={blurred.has('text') && issues.text?.level === 'error' ? true : undefined}
-            className={`${BASE_INPUT_CLASS} resize-none ${inputBorderClass(issues.text, blurred.has('text'))}`}
-          />
-          <IssueHint issue={issues.text} blurred={blurred.has('text')} />
-        </div>
-        <div>
-          <label htmlFor={`${id}-dur`} className="block text-[11px] font-medium text-slate-300">
-            时长 (秒)
-          </label>
-          <input
-            id={`${id}-dur`}
-            type="number"
-            value={frame.durationS}
-            min={0}
-            step={0.5}
-            disabled={disabled}
-            onChange={(e) => onPatch({ durationS: parseFloat(e.target.value) || 0 })}
-            onBlur={() => markBlurred('durationS')}
-            aria-invalid={blurred.has('durationS') && issues.durationS?.level === 'error' ? true : undefined}
-            className={`${BASE_INPUT_CLASS} ${inputBorderClass(issues.durationS, blurred.has('durationS'))}`}
-          />
-          <IssueHint issue={issues.durationS} blurred={blurred.has('durationS')} />
-        </div>
-      </div>
+      {!isExpanded && (
+        <button
+          type="button"
+          onClick={onToggle}
+          className="mt-2 w-full rounded-xl border border-transparent bg-white/[0.02] px-2.5 py-1.5 text-left transition hover:border-white/10 hover:bg-white/[0.05]"
+        >
+          <span className="text-xs text-slate-200">「{previewText}{truncated ? '…' : ''}」</span>
+          <span className="ml-2 text-[11px] text-slate-500">{frame.durationS}s · {charCount} 字</span>
+        </button>
+      )}
 
-      <div className="mt-2">
-        <label htmlFor={`${id}-vd`} className="block text-[11px] font-medium text-slate-300">
-          画面提示（可选 · 给分镜节点参考）
-        </label>
-        <input
-          id={`${id}-vd`}
-          type="text"
-          value={frame.visualDirection}
-          disabled={disabled}
-          onChange={(e) => onPatch({ visualDirection: e.target.value })}
-          className={`${BASE_INPUT_CLASS} ${inputBorderClass(undefined, false)}`}
-        />
-      </div>
+      {isExpanded && (
+        <>
+          <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-3">
+            <div className="sm:col-span-2">
+              <label htmlFor={`${id}-text`} className="block text-[11px] font-medium text-slate-300">
+                口播文案 <span className="text-slate-500">({charCount} 字 · 建议 8-15)</span>
+              </label>
+              <textarea
+                id={`${id}-text`}
+                value={frame.text}
+                disabled={disabled}
+                rows={2}
+                onChange={(e) => onPatch({ text: e.target.value })}
+                onBlur={() => markBlurred('text')}
+                aria-invalid={blurred.has('text') && issues.text?.level === 'error' ? true : undefined}
+                className={`${BASE_INPUT_CLASS} resize-none ${inputBorderClass(issues.text, blurred.has('text'))}`}
+              />
+              <IssueHint issue={issues.text} blurred={blurred.has('text')} />
+            </div>
+            <div>
+              <label htmlFor={`${id}-dur`} className="block text-[11px] font-medium text-slate-300">
+                时长 (秒)
+              </label>
+              <input
+                id={`${id}-dur`}
+                type="number"
+                value={frame.durationS}
+                min={0}
+                step={0.5}
+                disabled={disabled}
+                onChange={(e) => onPatch({ durationS: parseFloat(e.target.value) || 0 })}
+                onBlur={() => markBlurred('durationS')}
+                aria-invalid={blurred.has('durationS') && issues.durationS?.level === 'error' ? true : undefined}
+                className={`${BASE_INPUT_CLASS} ${inputBorderClass(issues.durationS, blurred.has('durationS'))}`}
+              />
+              <IssueHint issue={issues.durationS} blurred={blurred.has('durationS')} />
+            </div>
+          </div>
+
+          <div className="mt-2">
+            <label htmlFor={`${id}-vd`} className="block text-[11px] font-medium text-slate-300">
+              画面提示（可选 · 给分镜节点参考）
+            </label>
+            <input
+              id={`${id}-vd`}
+              type="text"
+              value={frame.visualDirection}
+              disabled={disabled}
+              onChange={(e) => onPatch({ visualDirection: e.target.value })}
+              className={`${BASE_INPUT_CLASS} ${inputBorderClass(undefined, false)}`}
+            />
+          </div>
+        </>
+      )}
     </div>
   );
 }
@@ -375,13 +519,41 @@ export function StoryboardFrameEditor({ frames, onChange, disabled }: Storyboard
 
   const itemIds = useMemo(() => frames.map((_, i) => i), [frames]);
 
+  // Same expansion model as ScriptFrameEditor — see that comment for rationale.
+  const [expandedSet, setExpandedSet] = useState<Set<number>>(new Set());
+  const cardRefs = useRef<Array<HTMLDivElement | null>>([]);
+
+  function applyStructural(next: StoryboardFrameShape[], expandIdx?: number) {
+    onChange(next);
+    if (expandIdx !== undefined) {
+      setExpandedSet(new Set([expandIdx]));
+      setTimeout(() => cardRefs.current[expandIdx]?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50);
+    } else {
+      setExpandedSet(new Set());
+    }
+  }
+  function toggleExpanded(idx: number) {
+    setExpandedSet((prev) => {
+      const next = new Set(prev);
+      if (next.has(idx)) next.delete(idx);
+      else next.add(idx);
+      return next;
+    });
+  }
+  function jumpTo(n: number) {
+    const idx = n - 1;
+    if (idx < 0 || idx >= frames.length) return;
+    setExpandedSet((prev) => new Set([...prev, idx]));
+    setTimeout(() => cardRefs.current[idx]?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50);
+  }
+
   function handleDragEnd(event: DragEndEvent) {
     const { active, over } = event;
     if (!over || active.id === over.id) return;
     const fromPos = Number(active.id);
     const toPos   = Number(over.id);
     if (Number.isNaN(fromPos) || Number.isNaN(toPos)) return;
-    onChange(moveFrameTo(frames, fromPos, toPos));
+    applyStructural(moveFrameTo(frames, fromPos, toPos));
   }
 
   return (
@@ -395,6 +567,15 @@ export function StoryboardFrameEditor({ frames, onChange, disabled }: Storyboard
         </span>
       </div>
 
+      <FrameNavToolbar
+        totalFrames={frames.length}
+        expandedCount={expandedSet.size}
+        onJump={jumpTo}
+        onExpandAll={() => setExpandedSet(new Set(frames.map((_, i) => i)))}
+        onCollapseAll={() => setExpandedSet(new Set())}
+        disabled={disabled}
+      />
+
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
         <SortableContext items={itemIds} strategy={verticalListSortingStrategy}>
           <div className="space-y-3">
@@ -402,16 +583,19 @@ export function StoryboardFrameEditor({ frames, onChange, disabled }: Storyboard
               <SortableShell key={`${frame.index}-${idx}`} id={idx} disabled={disabled ?? false}>
                 {(handle) => (
                   <StoryboardFrameCard
+                    cardRef={(el) => { cardRefs.current[idx] = el; }}
+                    isExpanded={expandedSet.has(idx)}
+                    onToggle={() => toggleExpanded(idx)}
                     frame={frame}
                     position={idx}
                     total={frames.length}
                     disabled={disabled}
                     handle={handle}
                     onPatch={(patch) => onChange(patchFrame(frames, idx, patch))}
-                    onMoveUp={() => onChange(moveFrame(frames, idx, -1))}
-                    onMoveDown={() => onChange(moveFrame(frames, idx, 1))}
-                    onDelete={() => onChange(deleteFrameAt(frames, idx))}
-                    onInsertAbove={() => onChange(insertFrameAt(frames, idx, makeEmptyStoryboardFrame(0)))}
+                    onMoveUp={() => applyStructural(moveFrame(frames, idx, -1))}
+                    onMoveDown={() => applyStructural(moveFrame(frames, idx, 1))}
+                    onDelete={() => applyStructural(deleteFrameAt(frames, idx))}
+                    onInsertAbove={() => applyStructural(insertFrameAt(frames, idx, makeEmptyStoryboardFrame(0)), idx)}
                   />
                 )}
               </SortableShell>
@@ -423,7 +607,7 @@ export function StoryboardFrameEditor({ frames, onChange, disabled }: Storyboard
       <button
         type="button"
         disabled={disabled}
-        onClick={() => onChange(insertFrameAt(frames, frames.length, makeEmptyStoryboardFrame(0)))}
+        onClick={() => applyStructural(insertFrameAt(frames, frames.length, makeEmptyStoryboardFrame(0)), frames.length)}
         className="flex w-full items-center justify-center gap-1 rounded-2xl border border-dashed border-white/15 bg-white/[0.04] px-3 py-2 text-xs text-slate-400 transition hover:border-cyan-300/40 hover:bg-cyan-300/5 hover:text-cyan-100 disabled:cursor-not-allowed disabled:opacity-50"
       >
         + 添加新帧到末尾
@@ -433,11 +617,14 @@ export function StoryboardFrameEditor({ frames, onChange, disabled }: Storyboard
 }
 
 interface StoryboardFrameCardProps {
-  frame:    StoryboardFrameShape;
-  position: number;
-  total:    number;
-  disabled?: boolean;
-  handle:   SortableHandle;
+  frame:      StoryboardFrameShape;
+  position:   number;
+  total:      number;
+  disabled?:  boolean;
+  handle:     SortableHandle;
+  isExpanded: boolean;
+  onToggle:   () => void;
+  cardRef:    React.RefCallback<HTMLDivElement>;
   onPatch:        (patch: Partial<StoryboardFrameShape>) => void;
   onMoveUp:       () => void;
   onMoveDown:     () => void;
@@ -446,7 +633,7 @@ interface StoryboardFrameCardProps {
 }
 
 function StoryboardFrameCard({
-  frame, position, total, disabled, handle,
+  frame, position, total, disabled, handle, isExpanded, onToggle, cardRef,
   onPatch, onMoveUp, onMoveDown, onDelete, onInsertAbove,
 }: StoryboardFrameCardProps) {
   const id = useId();
@@ -457,20 +644,43 @@ function StoryboardFrameCard({
   const markBlurred = (key: keyof StoryboardFrameShape) =>
     setBlurred((prev) => (prev.has(key) ? prev : new Set([...prev, key])));
 
+  // Preview prefers voiceover; falls back to scene; final fallback "（空）".
+  const previewSource = (frame.voiceover.trim() || frame.scene.trim());
+  const previewText   = previewSource.length > 0 ? previewSource.slice(0, 28) : '（空）';
+  const truncated     = previewSource.length > 28;
+
   return (
-    <div className="rounded-2xl border border-white/10 bg-slate-950/60 p-3 shadow-lg shadow-cyan-950/20 backdrop-blur-xl">
+    <div
+      ref={cardRef}
+      className="rounded-2xl border border-white/10 bg-slate-950/60 p-3 shadow-lg shadow-cyan-950/20 backdrop-blur-xl"
+    >
       <FrameCardHeader
         label={`第 ${frame.index} 帧`}
         position={position}
         total={total}
         disabled={disabled}
         handle={handle}
+        isExpanded={isExpanded}
+        onToggle={onToggle}
         onMoveUp={onMoveUp}
         onMoveDown={onMoveDown}
         onDelete={onDelete}
         onInsertAbove={onInsertAbove}
       />
 
+      {!isExpanded && (
+        <button
+          type="button"
+          onClick={onToggle}
+          className="mt-2 w-full rounded-xl border border-transparent bg-white/[0.02] px-2.5 py-1.5 text-left transition hover:border-white/10 hover:bg-white/[0.05]"
+        >
+          <span className="text-xs text-slate-200">「{previewText}{truncated ? '…' : ''}」</span>
+          <span className="ml-2 text-[11px] text-slate-500">{frame.durationSec}s · {frame.cameraLanguage}</span>
+        </button>
+      )}
+
+      {isExpanded && (
+        <>
       <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-3">
         <div className="sm:col-span-2">
           <label htmlFor={`${id}-vo`} className="block text-[11px] font-medium text-slate-300">
@@ -575,6 +785,8 @@ function StoryboardFrameCard({
         />
         <IssueHint issue={issues.onScreenText} blurred={blurred.has('onScreenText')} />
       </div>
+        </>
+      )}
     </div>
   );
 }
@@ -587,6 +799,8 @@ interface FrameCardHeaderProps {
   total:    number;
   disabled?: boolean;
   handle:   SortableHandle;
+  isExpanded: boolean;
+  onToggle:   () => void;
   onMoveUp:       () => void;
   onMoveDown:     () => void;
   onDelete:       () => void;
@@ -594,7 +808,7 @@ interface FrameCardHeaderProps {
 }
 
 function FrameCardHeader({
-  label, position, total, disabled, handle,
+  label, position, total, disabled, handle, isExpanded, onToggle,
   onMoveUp, onMoveDown, onDelete, onInsertAbove,
 }: FrameCardHeaderProps) {
   const isFirst = position === 0;
@@ -610,7 +824,22 @@ function FrameCardHeader({
           setActivatorNodeRef={handle.setActivatorNodeRef}
           disabled={disabled ?? false}
         />
-        <span className="text-xs font-semibold uppercase tracking-wide text-slate-400">{label}</span>
+        <button
+          type="button"
+          onClick={onToggle}
+          aria-expanded={isExpanded}
+          aria-label={isExpanded ? '折叠此帧' : '展开此帧'}
+          className="mr-1 rounded p-0.5 text-slate-400 hover:bg-white/[0.06] hover:text-cyan-200 focus:outline-none focus:ring-2 focus:ring-cyan-300/40"
+        >
+          <svg
+            className={`h-3.5 w-3.5 transition-transform ${isExpanded ? 'rotate-90' : ''}`}
+            viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}
+            aria-hidden="true"
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+          </svg>
+        </button>
+        <span className="whitespace-nowrap text-xs font-semibold uppercase tracking-wide text-slate-400">{label}</span>
       </div>
       <div className="flex items-center gap-1">
         <IconButton title="在此帧上方插入新帧" onClick={onInsertAbove} disabled={disabled}>

@@ -24,6 +24,7 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { trpc } from '@/lib/trpc-client';
 import { friendlyFromAny } from '@/lib/error-messages';
 import { NODE_LABELS, type NodeType } from '@/lib/workflow/ui-helpers';
@@ -93,6 +94,12 @@ export function EditNodeDialog({
   const [parseError,  setParseError]  = useState<string | null>(null);
   const [serverError, setServerError] = useState<string | null>(null);
   const dialogRef = useRef<HTMLDivElement>(null);
+  // Portal target only available after mount — guards SSR + first paint.
+  // Without portaling, ancestor `backdrop-filter` (e.g. NodeCard's
+  // `backdrop-blur-xl`) creates a containing block that traps our
+  // `fixed inset-0` overlay inside the parent card instead of the viewport.
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => { setMounted(true); }, []);
 
   // Reset state every time the dialog opens (new step, fresh JSON).
   useEffect(() => {
@@ -130,7 +137,7 @@ export function EditNodeDialog({
     },
   });
 
-  if (!open) return null;
+  if (!open || !mounted) return null;
 
   function buildPayloadFromFrames(): unknown {
     // Recompute derived fields (charCount/frameCount/fullText for script;
@@ -212,7 +219,7 @@ export function EditNodeDialog({
     || (nodeType === 'storyboard' && storyboardFrames.length === 0)
   );
 
-  return (
+  return createPortal(
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 px-4 py-8 backdrop-blur-sm"
       role="dialog"
@@ -350,7 +357,8 @@ export function EditNodeDialog({
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
 
