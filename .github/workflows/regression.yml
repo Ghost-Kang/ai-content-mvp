@@ -1,0 +1,38 @@
+name: regression
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  # type + unit only — fast, zero external deps. e2e (Playwright) is left
+  # to local because it requires a running dev server, which transitively
+  # imports modules that throw on missing DATABASE_URL / Clerk / Upstash
+  # env. Adding e2e to CI is a separate, larger workstream (dummy/mocked
+  # services or testcontainers).
+  type-and-unit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: typecheck
+        run: pnpm typecheck
+
+      - name: unit tests
+        run: pnpm test
