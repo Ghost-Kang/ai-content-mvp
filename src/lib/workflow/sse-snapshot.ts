@@ -19,6 +19,10 @@ export interface Snapshot {
     startedAt:        Date | string | null;
     completedAt:      Date | string | null;
     updatedAt:        Date | string;
+    // Origin badge needs sourceMeta from seed_input; SSE overwrites the
+    // react-query cache so omitting this here erases the badge mid-run.
+    // Static after creation — intentionally NOT part of change-detect.
+    seedInput:        Record<string, unknown> | null;
   };
   steps: ReadonlyArray<{
     id:          string;
@@ -65,6 +69,7 @@ export async function loadSnapshot(runId: string, tenantId: string): Promise<Sna
       startedAt:       run.startedAt,
       completedAt:     run.completedAt,
       updatedAt:       run.updatedAt,
+      seedInput:       run.seedInput,
     },
     steps: steps.map((s) => ({
       id:          s.id,
