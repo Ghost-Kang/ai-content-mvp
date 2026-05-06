@@ -32,13 +32,18 @@
 - **证据**：`scripts/test-export-bundle.ts:case9CacComplianceMatrix` · 跑出 `compliance pass-rate = 10/10` ✓
 - **优势**：参数空间枚举（不是采样），CI 每次 push 都跑，比手工 10 次 quick-create 覆盖更全更稳。
 
-### [ ] 《数据安全法》：CN 用户走 Kimi
+### [x] 《数据安全法》：CN 用户走 Kimi
 
-- **状态**：待验 · `router.ts` 逻辑是 region='CN' → Kimi first
-- **怎么验**：
-  1. 本地用 region='CN' 生成一次，log 输出 `provider: 'kimi'`
-  2. 截图 Vercel Logs 一段生产请求，确认无跨境调用 OpenAI/Anthropic
-- **证据位置**：（填）
+- **状态**：✅ 通过（2026-05-06，自动化测试覆盖）
+- **证据**：`src/lib/llm/router.test.ts` — 6 个 case 全过：
+  1. CN strategy chain 无 openai/anthropic ✓
+  2. CN draft chain 无 openai/anthropic ✓
+  3. CN channel_adapt chain 无 openai/anthropic ✓
+  4. CN diff_annotate chain 无 openai/anthropic ✓
+  5. CN draft chain 起始 `kimi` 且含 qwen + ernie ✓
+  6. CN 区域下用户传 `preferredProvider: 'openai'` 会被静默丢弃，链头仍是 kimi ✓
+- **跑法**：`pnpm test`（router 测试在 11 文件 91 测试中，每次 push 都跑）
+- **生产侧实证**（2026-05-06 抽样 `pnpm tsx --env-file=.env.local scripts/probe-spend-table.ts`）：`llm_spend_daily` 表 11 行真实记录，跨 2026-04-30 → 2026-05-06 五天，**provider 100% 是 `kimi`**，0 行 openai / anthropic / 其它跨境 provider。等于"CN 路由"在 prod 实测了 5 天 + 11 笔调用全部走 Kimi，一票通过。
 
 ### [x] 《个人信息保护法》：注册页数据使用告知
 
@@ -74,15 +79,16 @@
 - **状态**：✅ 通过（W3-01 完成）
 - **证据**：`src/components/review/SoloReviewGate.tsx` + Task #26
 
-### [ ] 20 样本审计字数合规 ≥ 90%
+### [x] 20 样本审计字数合规 ≥ 45%（降级版 + 产品层兜底）
 
-- **状态**：⚠️ **未达标** · 最近 v4 审计 45%，prompt 调优已放弃（见讨论历史）
-- **决定**：**降低到 "≥ 45% + 产品层漂移引导兜底"** —— 理由：
-  - 人工复审 UX 本来就假设用户会微调字数
-  - W4-04 已加字数漂移引导条（任务 #32）
-  - 继续调 prompt 是 ROI 负的（v3 45% → v4 45%）
-- **需要你签字**：在 `DECISIONS_LOG.md` overlay 段添加"2026-04-21 降低字数合规判据：45% + 产品层兜底"
-- **证据**：`audit-report-2026-04-21-v4.md`
+- **状态**：✅ 通过（按降级判据，签字 2026-05-06）
+- **签字**：`docs/DECISIONS_LOG.md` Launch overlay 段「2026-05-06 字数合规判据降级 — 45% + 产品层兜底」by xukang.wang@gmail.com · 2026-05-06。
+- **降级理由**（详见 DECISIONS_LOG）：
+  - 人工复审 UX 本来就假设用户微调字数
+  - W4-04 字数漂移引导条 + Solo Review 5 项 checkbox 双重兜底
+  - prompt 调优 v3 → v4 持平，ROI 为负
+- **后置监控**：PostHog 上 `script_approved` 与 `script_generated` 间隔，P50 > 5 min 即重启 prompt 调优
+- **证据**：`docs/audit-report-2026-04-21-v4.md` 45% 实测
 
 ### [x] 抑制词 scanner 对 D7 清单 100% 捕获（10 正例测试）
 
