@@ -1,7 +1,7 @@
 # PROGRESS — AI 短视频内容工作流平台 (v3.0 PIVOT)
 
 **Last updated**: 2026-05-06（视频并发 env + EditNodeDialog Portal/折叠 + Playwright e2e + GitHub Actions CI · Clerk Production 切换早上完成）
-**Resume point**: 🟢 **HEAD = `9938ba7` 已 push origin/main**。`pnpm typecheck` clean / `pnpm test`（11 文件 · 91 vitest unit）全绿 / `pnpm test:e2e`（chromium · 7 e2e：2 smoke + 5 EditNodeDialog risk points）全绿 / GitHub Actions `regression` workflow 在 main 跑通 33s。最新 production = `https://ai-content-pciog44pw-ai-content-mvp.vercel.app`（aliased `ai-content-mvp.vercel.app` + `ai-create-content.herwin.top`）。Vercel Production env 已加 `WORKFLOW_VIDEO_CONCURRENCY=3` + `WORKFLOW_VIDEO_MAX_FRAMES_PER_INVOCATION=3`。下一步：实跑一次 17 段视频生成 run 验证并发实际生效（截图 + Vercel logs follow）。
+**Resume point**: 🟢 **HEAD = `9938ba7` 已 push origin/main**。`pnpm typecheck` clean / `pnpm test`（11 文件 · 91 vitest unit）全绿 / `pnpm test:e2e`（chromium · 7 e2e：2 smoke + 5 EditNodeDialog risk points）全绿 / GitHub Actions `regression` workflow 在 main 跑通 33s。最新 production = `https://ai-content-pciog44pw-ai-content-mvp.vercel.app`（aliased `ai-content-mvp.vercel.app` + `ai-create-content.herwin.top`）。Vercel Production env 已加 `WORKFLOW_VIDEO_CONCURRENCY=3` + `WORKFLOW_VIDEO_MAX_FRAMES_PER_INVOCATION=3`，**已实跑验证并发 3 帧生效**。下一步：launch 收尾 P0（3 seed user 邀请、CAC 10 样本、PIPL 文案、PostHog 看板、移动端复查），距 2026-05-15 launch 9 天。
 **Launch target**: **2026-05-15 Friday**（per LAUNCH_CHECKLIST，距今 9 天；不是 6-week 计划）
 **Current phase**: 🟢 **W5 launch 收尾** — production deploy + healthz 已完成；剩：3 seed user 邀请发出、CAC 10 样本人工核验、PIPL 文案补、PostHog v3 看板确认、移动端人工复查。RLS 真启用准备已就绪，等运维在 Supabase 跑迁移（job `bd1d731a` + 文档 2026-05-14 复审）。
 
@@ -116,7 +116,7 @@
 **2026-05-06 视频并发 + EditNodeDialog UX + e2e 体系 + CI（commits `5986432` → `9938ba7`）**：
 
 - **视频并发文案 fix（`5986432`）**：`NodeCard.tsx` 的"正在并发生成"在 `concurrency=1` 时是误导（每批就 1 帧）。改为 `concurrency >= 2 && activeFrameIndexes.length >= 2` 才说"并发"，否则说"正在生成"。
-- **Vercel Production env 加并发开关**：`WORKFLOW_VIDEO_CONCURRENCY=3` + `WORKFLOW_VIDEO_MAX_FRAMES_PER_INVOCATION=3`。Pro 60s 函数预算下 17 段从被动 QStash 重试（~12 min）改为主动接力（~4 min 理论值）。**待实跑验证**：起一个 17 段 run 截图 + `vercel logs --follow` 观察 `activeFrameIndexes` 是否真有 3 个并发。
+- **Vercel Production env 加并发开关**：`WORKFLOW_VIDEO_CONCURRENCY=3` + `WORKFLOW_VIDEO_MAX_FRAMES_PER_INVOCATION=3`。Pro 60s 函数预算下 17 段从被动 QStash 重试（~12 min）改为主动接力（~4 min 理论值）。**已实跑验证（2026-05-06 用户确认）**：activeFrameIndexes 确实同时持有 3 个值，并发 3 帧已在生产生效。
 - **EditNodeDialog Portal bug fix + 折叠/跳转 UX 改造（`22e89b5`）**：
   - **Bug 根因**：`NodeCard` 用了 `backdrop-blur-xl`，CSS `backdrop-filter` 会创建新的 containing block，让 `EditNodeDialog` 的 `fixed inset-0` overlay 不再相对 viewport，被困在父 NodeCard 内（截图：dialog 窄到字符竖排）。
   - **修法**：`createPortal(jsx, document.body)` + `mounted` state guard SSR 安全。
