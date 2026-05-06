@@ -1,8 +1,8 @@
 # PROGRESS — AI 短视频内容工作流平台 (v3.0 PIVOT)
 
-**Last updated**: 2026-05-05 晚（Same-Topic Resume + 架构 review 加固 + 测试覆盖 58 → 85）
-**Resume point**: 🟢 **当前工作树：`452f483` 之后新增 Same-Topic Resume + 架构 review 一批加固，待 commit/push**。`pnpm typecheck`、`pnpm vitest run`（10 文件 / 85 测试）全绿；`workflow_runs.seed_input` 迁移已确认存在；最新已部署 production 仍是 `452f483`：`https://ai-content-aztgudh3e-ai-content-mvp.vercel.app`，`/api/healthz` 200。下一步：浏览器手 smoke + preview 部署验。
-**Launch target**: **2026-05-15 Friday**（per LAUNCH_CHECKLIST，16 天后；不是 6-week 计划）
+**Last updated**: 2026-05-06（视频并发 env + EditNodeDialog Portal/折叠 + Playwright e2e + GitHub Actions CI · Clerk Production 切换早上完成）
+**Resume point**: 🟢 **HEAD = `9938ba7` 已 push origin/main**。`pnpm typecheck` clean / `pnpm test`（11 文件 · 91 vitest unit）全绿 / `pnpm test:e2e`（chromium · 7 e2e：2 smoke + 5 EditNodeDialog risk points）全绿 / GitHub Actions `regression` workflow 在 main 跑通 33s。最新 production = `https://ai-content-pciog44pw-ai-content-mvp.vercel.app`（aliased `ai-content-mvp.vercel.app` + `ai-create-content.herwin.top`）。Vercel Production env 已加 `WORKFLOW_VIDEO_CONCURRENCY=3` + `WORKFLOW_VIDEO_MAX_FRAMES_PER_INVOCATION=3`。下一步：实跑一次 17 段视频生成 run 验证并发实际生效（截图 + Vercel logs follow）。
+**Launch target**: **2026-05-15 Friday**（per LAUNCH_CHECKLIST，距今 9 天；不是 6-week 计划）
 **Current phase**: 🟢 **W5 launch 收尾** — production deploy + healthz 已完成；剩：3 seed user 邀请发出、CAC 10 样本人工核验、PIPL 文案补、PostHog v3 看板确认、移动端人工复查。RLS 真启用准备已就绪，等运维在 Supabase 跑迁移（job `bd1d731a` + 文档 2026-05-14 复审）。
 
 **W4-01 / 新榜 真实情况（2026-04-26 probe 结论）**：
@@ -107,7 +107,30 @@
 - ✅ 发版校验：`pnpm typecheck`、`pnpm lint`、`pnpm test`（52/52）、`pnpm build` 全绿。
 - ✅ Git auto deploy：`452f483` 已 push `origin/main`，Vercel production deployment success；`/api/healthz`、`/`、`/sign-in` 均 200，`/topics`、`/runs/new` 正确跳转 sign-in。
 
-**2026-05-05 Same-Topic Workflow Resume（待 commit/push）**：
+**2026-05-06 Clerk Production 切换（Dashboard + Vercel，无应用代码变更）**：
+- **Clerk Dashboard → Production → Component paths**：`<SignIn />` / `<SignUp />` 使用应用域名 `https://ai-create-content.herwin.top/sign-in` 与 `…/sign-up`；**Signing out** 使用「应用域名上的路径」→ `https://ai-create-content.herwin.top`（与各处 `UserButton` 的 `afterSignOutUrl="/"` 一致；此前若指向 Account Portal `accounts.*` 会与产品不一致）。
+- **Vercel → Settings → Environment Variables → Production**：`NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` = `pk_live_…`，`CLERK_SECRET_KEY` = `sk_live_…`。**易错点**：`NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` 若只更新了 **Preview** 而未更新 **Production**，线上 HTML 仍会嵌入 `pk_test_…`，表现为「密钥已换但仍像开发实例」。
+- **部署**：修改任意 `NEXT_PUBLIC_*` 后必须触发新的 **Production** 构建（例如本地 `cd app && vercel deploy --prod --yes`），否则客户端仍能缓存旧 publishable key。
+- **验收**：对生产 `/sign-in` 响应 HTML 检查 `data-clerk-publishable-key` 前缀为 `pk_live_`；Secret 不会出现在 HTML。运维步骤摘要见 `docs/RUNBOOK.md`「场景 4」。
+
+**2026-05-06 视频并发 + EditNodeDialog UX + e2e 体系 + CI（commits `5986432` → `9938ba7`）**：
+
+- **视频并发文案 fix（`5986432`）**：`NodeCard.tsx` 的"正在并发生成"在 `concurrency=1` 时是误导（每批就 1 帧）。改为 `concurrency >= 2 && activeFrameIndexes.length >= 2` 才说"并发"，否则说"正在生成"。
+- **Vercel Production env 加并发开关**：`WORKFLOW_VIDEO_CONCURRENCY=3` + `WORKFLOW_VIDEO_MAX_FRAMES_PER_INVOCATION=3`。Pro 60s 函数预算下 17 段从被动 QStash 重试（~12 min）改为主动接力（~4 min 理论值）。**待实跑验证**：起一个 17 段 run 截图 + `vercel logs --follow` 观察 `activeFrameIndexes` 是否真有 3 个并发。
+- **EditNodeDialog Portal bug fix + 折叠/跳转 UX 改造（`22e89b5`）**：
+  - **Bug 根因**：`NodeCard` 用了 `backdrop-blur-xl`，CSS `backdrop-filter` 会创建新的 containing block，让 `EditNodeDialog` 的 `fixed inset-0` overlay 不再相对 viewport，被困在父 NodeCard 内（截图：dialog 窄到字符竖排）。
+  - **修法**：`createPortal(jsx, document.body)` + `mounted` state guard SSR 安全。
+  - **B 方案 UX**：17 帧 × 5 字段 = 17 屏滚动太长。帧卡片默认折叠成单行预览（前 28 字 + 时长 + 镜头/字数）；新增 `FrameNavToolbar`（跳转输入 / 全部展开 / 全部折叠 / 已展开计数）；插入新帧自动展开 + 滚动定位；结构性变更（insert/delete/move/dnd）重置展开集（位置语义已变，重置比错指更友好）。
+- **Playwright e2e 体系（`ff41b3e` + `e87719b`）**：
+  - 装 `@playwright/test@1.59` + chromium-only browser；`pnpm test:e2e` / `pnpm test:e2e:ui`。
+  - `playwright.config.ts`：`webServer` 自动起 `pnpm dev`，CI 外复用现有 server。
+  - **dev fixture 路由**（`/dev/edit-dialog-fixture`，dev-only public route via middleware NODE_ENV gate + page-level `notFound()`）：把 EditNodeDialog 装在 `backdrop-blur-xl` 父容器里复现真实 NodeCard 的 containing-block 陷阱（不这样做的话 Portal fix 没在测试中被实际 exercise）。17 帧 storyboard fixture 数据。
+  - **5 risk-point 自动化覆盖**：(1) Portal 让 dialog 占满 viewport（>95% 宽 × >95% 高）/ (2) 17 帧默认折叠（"已展开 0/17" + voiceover input count = 0）/ (3) 跳转 → 单帧展开（input count = 1）/ (4) 全部展开/折叠（17 ↔ 0）/ (5) Esc 关闭 dialog。
+  - **明确未覆盖**：dnd 拖拽、frames ↔ json 模式切换、保存提交（保存需要真 auth + run，等 Clerk testing-token harness）。
+- **GitHub Actions CI（`9938ba7`）**：`.github/workflows/regression.yml`，每次 push/PR to main 跑 `pnpm typecheck` + `pnpm test`。**v1 不在 CI 跑 e2e** — `pnpm dev` 启动会 transitively import `db/index.ts:requireEnv('DATABASE_URL')`、Clerk、Upstash 等，CI 跑 e2e 需要 dummy/mocked services 或 testcontainers，是独立 workstream。本地开发者按规则手动跑 `pnpm test:e2e` 兜底。首次 run 33s 绿。
+- **Memory feedback 升级**：旧规则"UI 改动建议手测"升级为"UI 改动**强制三层**：tsc + vitest + 浏览器手测（或 e2e）"。背景：本次 EditNodeDialog 重写完 tsc + 91 测试全绿就报"完成"，浏览器手测被跳过；用户当场指出此漏洞 → 规则升级 + Playwright e2e 体系建立闭环。
+
+**2026-05-05 Same-Topic Workflow Resume（已 commit/push，commits `d146f67` / `378b9ad` / `452f483`）**：
 - ✅ 新增 `src/lib/workflow/run-fingerprint.ts`：按 topic + seedInput 生成稳定指纹；中文空白/标点空白规范化；trending 以 `platform:opusId` 作为作品身份，Quick Create 以 formula / lengthMode / productName / targetAudience / coreClaim 作为结构化身份。
 - ✅ `workflow.create` 改为先查当前 tenant/user 最近 50 条 run；同指纹且未 cancelled 时复用旧 `runId`，返回 `resumed/status`；否则才插入新 `workflow_runs`。
 - ✅ `/runs/new` 与 Quick Create 入口按旧 run 状态分流：`pending/failed` 补发 dispatch；`running/done` 直接进入旧 run，依赖 orchestrator 已有 hydrate-and-skip 从断点继续。
@@ -115,7 +138,7 @@
 - ✅ 测试：新增 fingerprint + NodeRunner timeout 单测；`pnpm typecheck`、`pnpm lint`、`pnpm test`（58/58）、`pnpm build` 全绿；本地 production server route sanity：`/api/healthz`、`/runs` 200；问题 run 的 topic/script/storyboard sanity run 已跑到 `done`。
 - ⚠️ 当前版本是 exact-input memory，不做语义相似合并；并发强一致后续可把 fingerprint 落 DB 列 + partial unique index。
 
-**2026-05-05 架构 review 加固（同日，待 commit）**：
+**2026-05-05 架构 review 加固（已 commit，commits `307a554` / `e31d990`）**：
 
 针对上面 Same-Topic Workflow Resume 一批改动做架构层走查，发现并修复 8 项问题：
 
@@ -134,7 +157,7 @@
 - 新增 `src/lib/llm/fallback.test.ts`（6 断言：ProviderConfigError 跳过不踩 breaker / 全链都没配 → 可读错误 / 真 LLMError 仍踩 breaker / 不可重试 LLMError 立即抛 / spend cap 提前阻断）
 - 扩 `src/lib/workflow/node-runner.test.ts`：加 video 跳过 withTimeout 断言
 
-**发版校验**：`pnpm typecheck`、`pnpm vitest run`（10 文件 / 85 测试，从 58 → 85）全绿；UI 手测留给 commit 后下一步。
+**发版校验**：`pnpm typecheck`、`pnpm vitest run`（10 文件 / 85 测试，从 58 → 85）全绿；UI 手测在 2026-05-06 通过 Playwright e2e 自动化补齐（详见 5-06 小节）。
 
 **仍未做（按性价比延后）**：
 - P1-2 brand-safe 正则改写（等 seed user 真触发再判）

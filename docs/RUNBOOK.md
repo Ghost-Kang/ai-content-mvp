@@ -2,7 +2,7 @@
 
 > 单人运维场景：凌晨 3 点用户报障，第一次看这份文档的人（就是你自己，但是忘了一切）要能在 15 分钟内定位 + 处置。
 
-**最后更新**: 2026-04-21 · **维护人**: xukang.wang@gmail.com
+**最后更新**: 2026-05-06 · **维护人**: xukang.wang@gmail.com
 
 ## 全局快捷指令
 
@@ -149,6 +149,34 @@ pnpm tsx --env-file=.env.production.local scripts/migrate-add-llm-spend.ts
 - 每周日 UTC 0 点由 Supabase 自动备份（Free 保留 7 天）
 - 部署前 checklist：新的迁移文件必须已经在 staging 环境跑过
 - DATABASE_URL 变更后立即 `curl /api/healthz` 验证
+
+---
+
+## 场景 4：Clerk 线上仍像开发实例 / `pk_test` 仍出现在页面里
+
+### 症状
+
+- 生产域打开 `/sign-in`，开发者工具或页面源码里 `data-clerk-publishable-key` 仍是 **`pk_test_…`**，或 Clerk 脚本域名指向 `*.clerk.accounts.dev`。
+- 用户侧常见表现：域名与密钥实例不匹配、登录异常提示等。
+
+### 根因（最常见）
+
+1. **`NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` 只配在 Preview**，Production 作用域里仍是旧的 `pk_test_…`。该变量在 **`next build` 时打进前端**，必须保证 **Production** 一行也是 `pk_live_…`。
+2. 改了 Vercel 变量但 **没有重新部署 Production**，旧构建产物继续对外服务。
+
+### 处置
+
+1. Vercel → 项目 → **Environment Variables**：逐项确认 **`NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`**、**`CLERK_SECRET_KEY`** 在 **Production** 分别为 `pk_live_…`、`sk_live_…`（不要在聊天或截图里泄露 `sk_live_` 全文）。
+2. **Redeploy Production**（Dashboard 里 Redeploy，或 `cd app && vercel deploy --prod --yes`）。
+3. Clerk Dashboard → **Production** → **Paths / Component paths**：登录、注册在应用域名 `/sign-in`、`/sign-up`；退出回到应用根域名（与代码 `afterSignOutUrl="/"` 一致）。保存变更。
+
+### 快速验证
+
+```bash
+curl -sS "https://<你的生产域名>/sign-in" | grep -o 'data-clerk-publishable-key="[^"]*"'
+```
+
+期望输出里的密钥前缀为 **`pk_live_`**。
 
 ---
 
