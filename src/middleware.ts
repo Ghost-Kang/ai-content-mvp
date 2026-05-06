@@ -1,7 +1,12 @@
 import { clerkMiddleware, createRouteMatcher } from '@clerk/nextjs/server';
 import { NextResponse } from 'next/server';
 
-const isPublicRoute = createRouteMatcher([
+// `/dev(.*)` is bypassed only in development builds — used by Playwright
+// to mount UI components against fixture data without going through Clerk
+// sign-in. NODE_ENV is statically replaced by Next.js at build time, so
+// the if-branch is dead-code-eliminated in production and `/dev/*` falls
+// back to standard auth-protected routing.
+const PUBLIC_PATTERNS = [
   '/',              // landing page
   '/sign-in(.*)',
   '/sign-up(.*)',
@@ -16,7 +21,11 @@ const isPublicRoute = createRouteMatcher([
   // workflow_runs.status is the AuthZ (only pending/failed runs can
   // be picked up).
   '/api/workflow/run',
-]);
+];
+if (process.env.NODE_ENV === 'development') {
+  PUBLIC_PATTERNS.push('/dev(.*)');
+}
+const isPublicRoute = createRouteMatcher(PUBLIC_PATTERNS);
 
 export default clerkMiddleware(async (auth, req) => {
   if (isPublicRoute(req)) return;
