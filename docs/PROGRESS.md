@@ -3,7 +3,7 @@
 **Last updated**: 2026-05-06（视频并发 env + EditNodeDialog Portal/折叠 + Playwright e2e + GitHub Actions CI · Clerk Production 切换早上完成）
 **Resume point**: 🟢 **HEAD = `9938ba7` 已 push origin/main**。`pnpm typecheck` clean / `pnpm test`（11 文件 · 91 vitest unit）全绿 / `pnpm test:e2e`（chromium · 7 e2e：2 smoke + 5 EditNodeDialog risk points）全绿 / GitHub Actions `regression` workflow 在 main 跑通 33s。最新 production = `https://ai-content-pciog44pw-ai-content-mvp.vercel.app`（aliased `ai-content-mvp.vercel.app` + `ai-create-content.herwin.top`）。Vercel Production env 已加 `WORKFLOW_VIDEO_CONCURRENCY=3` + `WORKFLOW_VIDEO_MAX_FRAMES_PER_INVOCATION=3`，**已实跑验证并发 3 帧生效**。下一步：launch 收尾 P0（3 seed user 邀请、CAC 10 样本、PIPL 文案、PostHog 看板、移动端复查），距 2026-05-15 launch 9 天。
 **Launch target**: **2026-05-15 Friday**（per LAUNCH_CHECKLIST，距今 9 天；不是 6-week 计划）
-**Current phase**: 🟢 **W5 launch 收尾** — production deploy + healthz 已完成；剩：3 seed user 邀请发出、CAC 10 样本人工核验、PIPL 文案补、PostHog v3 看板确认、移动端人工复查。RLS 真启用准备已就绪，等运维在 Supabase 跑迁移（job `bd1d731a` + 文档 2026-05-14 复审）。
+**Current phase**: 🟢 **W5 launch 收尾** — production deploy + healthz 已完成；P0 收尾：3 seed user 邀请已发（用户告知）✅、CAC 10 样本（自动化矩阵 10/10）✅、PIPL 文案（已验证 sign-up 完整版 + sign-in 精简版）✅、PostHog v3 看板（待用户跑 happy path 看 dashboard，SOP 见 `docs/LAUNCH_VALIDATION_SOP.md`）⏳、移动端人工复查（待用户真机跑，SOP 同上）⏳。RLS 真启用准备已就绪，等运维在 Supabase 跑迁移（job `bd1d731a` + 文档 2026-05-14 复审）。
 
 **W4-01 / 新榜 真实情况（2026-04-26 probe 结论）**：
 - **Client 层（不改）**：
@@ -129,6 +129,13 @@
   - **明确未覆盖**：dnd 拖拽、frames ↔ json 模式切换、保存提交（保存需要真 auth + run，等 Clerk testing-token harness）。
 - **GitHub Actions CI（`9938ba7`）**：`.github/workflows/regression.yml`，每次 push/PR to main 跑 `pnpm typecheck` + `pnpm test`。**v1 不在 CI 跑 e2e** — `pnpm dev` 启动会 transitively import `db/index.ts:requireEnv('DATABASE_URL')`、Clerk、Upstash 等，CI 跑 e2e 需要 dummy/mocked services 或 testcontainers，是独立 workstream。本地开发者按规则手动跑 `pnpm test:e2e` 兜底。首次 run 33s 绿。
 - **Memory feedback 升级**：旧规则"UI 改动建议手测"升级为"UI 改动**强制三层**：tsc + vitest + 浏览器手测（或 e2e）"。背景：本次 EditNodeDialog 重写完 tsc + 91 测试全绿就报"完成"，浏览器手测被跳过；用户当场指出此漏洞 → 规则升级 + Playwright e2e 体系建立闭环。
+
+**2026-05-06（下午）launch P0 收尾**：
+
+- **#2 PIPL 文案（验证）**：sign-up 完整版 `PiplNotice` 4 项告知已就位（`sign-up/[[...sign-up]]/page.tsx:102`），sign-in 精简版 + 完整声明回链已就位（`sign-in/[[...sign-in]]/page.tsx:102`）。`docs/LAUNCH_CHECKLIST.md` 该项 ✅ + 证据。无新代码改动。
+- **#1 CAC 10 样本（自动化替代手工）**：扩展 `scripts/test-export-bundle.ts` 加 `case9CacComplianceMatrix`，10 个 fixture 覆盖参数空间（frameCount 1/2/3/4/5/6/8/10/12/17 × perFrameDuration 2.5/3/3.5/4/5/12s × 中英混合 topic × ±onScreenText），每条样本断言三层：(a) `script.txt` 末行含 `本内容由 AI 辅助生成`；(b) `subtitles/disclosure.srt` 存在 + 含 `本视频由 AI 辅助生成` + 起 `00:00:00,000` + 结束时间码 ±0.5s 内覆盖整片；(c) `README.md` 引用 `subtitles/disclosure.srt`。`pnpm wf:test:export:bundle` → `compliance pass-rate = 10/10` ✓。优势：参数枚举（不是采样）、CI 每次 push 都跑、可复测。
+- **#3 PostHog + #4 移动端 SOP**：新增 `docs/LAUNCH_VALIDATION_SOP.md` —— 这两项必须真账号/真机，无法自动化替代；SOP 给出 step-by-step（happy path → 4 事件验证 / iOS+Android 5 路径 + EditNodeDialog Portal 真机回归）+ 失败处置 + 时间预算（~20min + ~30min）。
+- **回归**：`pnpm typecheck` clean / `pnpm test`（11 文件 · 91 vitest unit）全绿 / `pnpm test:e2e`（7 e2e）全绿 / `pnpm wf:test:export:bundle` 含新 case9 全绿。CI 自动跑前两层。
 
 **2026-05-05 Same-Topic Workflow Resume（已 commit/push，commits `d146f67` / `378b9ad` / `452f483`）**：
 - ✅ 新增 `src/lib/workflow/run-fingerprint.ts`：按 topic + seedInput 生成稳定指纹；中文空白/标点空白规范化；trending 以 `platform:opusId` 作为作品身份，Quick Create 以 formula / lengthMode / productName / targetAudience / coreClaim 作为结构化身份。

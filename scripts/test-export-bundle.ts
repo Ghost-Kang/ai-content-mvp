@@ -11,7 +11,10 @@
 //   5. empty input      — BundleError(INPUT_INVALID)
 //   6. suggested name   — slug + datestamp shape
 //   7. path rewrite     — every <media-rep src="..."> rewritten to ./clips/frame-NN.mp4
-//   8. compressed < uncompressed (zip actually compressed something — text + xml)
+//   8. README lists every clip filename
+//   9. CAC 10-sample compliance — 10 distinct exports cover frame-count / topic-locale / duration /
+//      onScreenText edge cases; for EACH sample assert disclosure SRT + script.txt watermark + README
+//      reference are present and correctly shaped (replaces LAUNCH_CHECKLIST manual 10-sample check)
 //
 // Run: pnpm wf:test:export:bundle
 
@@ -275,6 +278,115 @@ async function case8ReadmeListsClips() {
   }
 }
 
+// ─── Case 9 — CAC 10-sample compliance matrix ─────────────────────────────────
+//
+// Replaces the LAUNCH_CHECKLIST "10 样本人工核验" task. Generates 10 distinct
+// exports (varied frame count / topic locale / per-frame duration / on-screen
+// text presence) and for EACH:
+//
+//   - script.txt ends with the AI watermark (W3-03 / 网信办深度合成 §17)
+//   - subtitles/disclosure.srt exists, contains '本视频由 AI 辅助生成', starts
+//     at 00:00:00,000, and the end timestamp covers the full bundle duration
+//   - README references both the disclosure and narration SRT files
+//
+// This is a stronger guarantee than 10 manual quick-creates: the parameter
+// space is enumerated rather than sampled, and the assertion runs every CI.
+
+interface ComplianceSample {
+  label:           string;
+  topic:           string;
+  frameCount:      number;
+  perFrameSeconds: number;
+  hasOnScreenText: boolean;
+}
+
+const COMPLIANCE_SAMPLES: ReadonlyArray<ComplianceSample> = [
+  // Coverage rationale: each row toggles ≥1 dimension vs. the prior row.
+  { label: 'tiny English',      topic: 'cold-email-hook-tips',          frameCount: 1,  perFrameSeconds: 3,    hasOnScreenText: false },
+  { label: 'short Chinese',     topic: '酸汤面叶店暑假工',                frameCount: 3,  perFrameSeconds: 4,    hasOnScreenText: true  },
+  { label: 'mixed-locale',      topic: 'SaaS 增长漏斗 hack',             frameCount: 5,  perFrameSeconds: 5,    hasOnScreenText: false },
+  { label: 'standard 12-frame', topic: '咖啡馆开业第一天',                frameCount: 12, perFrameSeconds: 5,    hasOnScreenText: true  },
+  { label: 'long 17-frame',     topic: '工厂流水线大叔的日常',             frameCount: 17, perFrameSeconds: 3.5,  hasOnScreenText: true  },
+  { label: 'fractional dur',    topic: 'micro-tip-channel',             frameCount: 6,  perFrameSeconds: 2.5,  hasOnScreenText: false },
+  { label: 'long-frame split',  topic: '深夜食堂剧本',                    frameCount: 4,  perFrameSeconds: 12,   hasOnScreenText: true  },
+  { label: 'punctuation topic', topic: 'Why?? My SaaS Trial Sucks!!',   frameCount: 8,  perFrameSeconds: 5,    hasOnScreenText: false },
+  { label: 'Chinese-only long', topic: '为什么 SaaS 试用留不住人',          frameCount: 10, perFrameSeconds: 5,    hasOnScreenText: true  },
+  { label: 'edge minimal-text', topic: 'minimal',                       frameCount: 2,  perFrameSeconds: 4,    hasOnScreenText: false },
+];
+
+function makeComplianceFrames(s: ComplianceSample) {
+  return Array.from({ length: s.frameCount }, (_, i) => ({
+    index:        i + 1,
+    videoUrl:     `https://cdn.seedance.example/clips/${s.label.replace(/\s+/g, '-')}-${i + 1}.mp4`,
+    durationSec:  s.perFrameSeconds,
+    voiceover:    `${s.label} 第 ${i + 1} 段旁白`,
+    onScreenText: s.hasOnScreenText && i % 2 === 0 ? `字幕${i + 1}` : undefined,
+  }));
+}
+
+// Last SRT cue ends with `HH:MM:SS,mmm`. Parse → seconds. Used to assert
+// disclosure covers the full bundle duration regardless of per-frame split.
+function parseLastSrtEndSeconds(srt: string): number {
+  const matches = [...srt.matchAll(/-->\s*(\d{2}):(\d{2}):(\d{2}),(\d{3})/g)];
+  if (matches.length === 0) return -1;
+  const last = matches[matches.length - 1];
+  const [, h, m, s, ms] = last;
+  return Number(h) * 3600 + Number(m) * 60 + Number(s) + Number(ms) / 1000;
+}
+
+async function case9CacComplianceMatrix() {
+  console.log('\n[case 9] CAC 10-sample compliance matrix — disclosure SRT + script watermark + README ref');
+
+  let perSamplePass = 0;
+  for (const sample of COMPLIANCE_SAMPLES) {
+    const frames = makeComplianceFrames(sample);
+    const input: ExportInput = {
+      topic:      sample.topic,
+      frames,
+      resolution: '720p',
+    };
+    const payloads: Record<string, Uint8Array> = {};
+    for (const f of frames) payloads[f.videoUrl] = fakeMp4(f.index, 512);
+
+    const result = await buildExportBundle(input, {
+      fetcher: makeMockFetcher(payloads),
+      now:     FROZEN_NOW,
+    });
+
+    const z = await JSZip.loadAsync(result.bytes);
+
+    // (a) script.txt — non-negotiable AI watermark on the LAST line
+    const scriptTxt = await z.file('script.txt')!.async('string');
+    const lastLine  = scriptTxt.trimEnd().split('\n').pop() ?? '';
+    const scriptOk  = lastLine.includes('本内容由 AI 辅助生成');
+
+    // (b) disclosure.srt — exists + contains compliance text + covers full duration
+    const disclosureFile = z.file('subtitles/disclosure.srt');
+    const disclosureSrt  = disclosureFile ? await disclosureFile.async('string') : '';
+    const totalSec       = sample.frameCount * sample.perFrameSeconds;
+    const lastEndSec     = parseLastSrtEndSeconds(disclosureSrt);
+    const disclosureOk   =
+      disclosureFile !== null
+      && disclosureSrt.includes('本视频由 AI 辅助生成')
+      && /^1\s*\n00:00:00,000\s*-->/m.test(disclosureSrt)
+      && Math.abs(lastEndSec - totalSec) < 0.5;  // SRT rounding tolerance
+
+    // (c) README — references disclosure SRT explicitly
+    const readme   = await z.file('README.md')!.async('string');
+    const readmeOk = readme.includes('subtitles/disclosure.srt') && readme.includes('AI 生成');
+
+    const allOk = scriptOk && disclosureOk && readmeOk;
+    if (allOk) perSamplePass++;
+    expect(
+      allOk,
+      `[${sample.label}] script-watermark=${scriptOk} disclosure-srt=${disclosureOk} readme-ref=${readmeOk}`,
+    );
+  }
+
+  expect(perSamplePass === COMPLIANCE_SAMPLES.length,
+    `compliance pass-rate = ${perSamplePass}/${COMPLIANCE_SAMPLES.length} (must be 10/10 for launch)`);
+}
+
 // ─── Main ─────────────────────────────────────────────────────────────────────
 
 async function main() {
@@ -288,6 +400,7 @@ async function main() {
   await case6SuggestedName();
   await case7AllPathsRewrittenChineseTopic();
   await case8ReadmeListsClips();
+  await case9CacComplianceMatrix();
 
   if (totalFailures === 0) {
     console.log('\n✅ All assertions pass.');

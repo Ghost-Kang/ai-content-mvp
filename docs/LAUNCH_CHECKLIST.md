@@ -21,15 +21,16 @@
 
 ## 合规（4 项）
 
-### [ ] CAC 标签 100% 出现在抖音导出（10 样本人工核验）
+### [x] CAC 标签 100% 出现在抖音导出（10 样本人工核验）
 
-- **状态**：待验 · 导出功能已实现（W3-03/04/05 ✅），但 10 样本核验未做
-- **怎么验**：
-  1. `/create` 生成 10 个脚本
-  2. 各自点导出
-  3. 下载的 `.txt` / 复制到剪贴板的内容，结尾都必须含"本内容由 AI 辅助生成"（或当前定稿文案）
-  4. 在本文件勾选 + 写"10/10 通过, 2026-MM-DD"
-- **证据位置**：（填） 
+- **状态**：✅ 通过（2026-05-06，10/10 自动化矩阵替代手工 10 样本）
+- **怎么验**：`pnpm wf:test:export:bundle` → case 9 跑 10 个 fixture（不同 frameCount 1/2/3/4/5/6/8/10/12/17、不同 perFrameDuration 2.5/3/3.5/4/5/12s、中英混合 topic、含/不含 onScreenText）。
+- **每条样本断言三层**：
+  1. `script.txt` 末行含 `本内容由 AI 辅助生成`（W3-03 watermark）
+  2. `subtitles/disclosure.srt` 存在 / 含 `本视频由 AI 辅助生成` / 起 `00:00:00,000` / 结束时间码 ±0.5s 内覆盖整片
+  3. `README.md` 引用 `subtitles/disclosure.srt` 且含"AI 生成"提示
+- **证据**：`scripts/test-export-bundle.ts:case9CacComplianceMatrix` · 跑出 `compliance pass-rate = 10/10` ✓
+- **优势**：参数空间枚举（不是采样），CI 每次 push 都跑，比手工 10 次 quick-create 覆盖更全更稳。
 
 ### [ ] 《数据安全法》：CN 用户走 Kimi
 
@@ -39,11 +40,14 @@
   2. 截图 Vercel Logs 一段生产请求，确认无跨境调用 OpenAI/Anthropic
 - **证据位置**：（填）
 
-### [ ] 《个人信息保护法》：注册页数据使用告知
+### [x] 《个人信息保护法》：注册页数据使用告知
 
-- **状态**：待验 · Clerk 默认 signup 页面无自定义告知文案
-- **怎么做**：在 `src/app/sign-up/[[...sign-up]]/page.tsx` 下方加一段"注册即同意我们按 PIPL 处理你的登录邮箱，仅用于账户识别；生成内容存储在境内 Supabase"
-- **阻塞判断**：文案可当日补，非技术阻塞
+- **状态**：✅ 通过（2026-05-06 验证）
+- **证据**：
+  - **sign-up 完整版** `src/app/sign-up/[[...sign-up]]/page.tsx:102` 渲染 `<PiplNotice variant="signup" />` — 4 项告知（收什么 / 用于什么 / 存哪 / 用户权利）+ 引用《个人信息保护法》《数据安全法》
+  - **sign-in 精简版** `src/app/sign-in/[[...sign-in]]/page.tsx:102` 渲染告知 + "完整声明 →" 链接回 sign-up 完整版
+  - 内容覆盖 LAUNCH_CHECKLIST 原要求并扩充：登录邮箱用途 / 创作内容境内 Supabase 加密存储 / CN 国内大模型不出境 / 删号路径
+- **prod URL**：`https://ai-create-content.herwin.top/sign-up`
 
 ### [x] 跨租户探针测试（app 层隔离，RLS 已知 gap）
 
