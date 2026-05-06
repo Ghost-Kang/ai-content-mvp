@@ -194,12 +194,14 @@ function buildVideoProgress(step: NodeCardStep, now: number): NodeProgressView {
 
   if (activeFrameIndexes.length > 0) {
     const activeText = activeFrameIndexes.map((n) => `第 ${n} 段`).join('、');
+    const isParallel = concurrency >= 2 && activeFrameIndexes.length >= 2;
+    const verb = isParallel ? '正在并发生成' : '正在生成';
     return {
       percent,
       title: `${percent}% 视频生成中`,
       detail: stalled
         ? `${activeText} 已等待 ${formatDuration(elapsedSinceProgress)}；当前卡在 Seedance 生成/轮询结果。`
-        : `正在并发生成 ${activeText}，已完成 ${completedFrames}/${totalFrames} 段。`,
+        : `${verb} ${activeText}，已完成 ${completedFrames}/${totalFrames} 段。`,
       etaText: stalled ? '如果继续超过 3 分钟，通常是服务商任务排队或回调变慢' : `预计剩余约 ${formatDuration(etaMs)}`,
       stalled,
     };
