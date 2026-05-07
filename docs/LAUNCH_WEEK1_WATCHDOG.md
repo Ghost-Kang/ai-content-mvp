@@ -61,11 +61,16 @@ LLM 日 cap（防刷）：
 
 **抽查命令**：
 ```bash
-# 当日 LLM 花费（cap=¥20/tenant、¥100 全站）
-pnpm tsx --env-file=.env.local scripts/probe-spend-table.ts
-# 本月视频/cost（cap=300 video/tenant、¥500 cost/tenant）
-pnpm tsx --env-file=.env.local scripts/probe-monthly-usage.ts
+# 主动告警（每天起床前手跑 1 次；exit 1 = 有 ALERT）
+pnpm cap:watch
+pnpm cap:watch --json    # 接 cron / webhook 用
+
+# 原始数据（cap-watch 命中 ALERT 时往下挖）
+pnpm tsx --env-file=.env.local scripts/probe-spend-table.ts     # 当日 LLM
+pnpm tsx --env-file=.env.local scripts/probe-monthly-usage.ts   # 本月 video/cost
 ```
+
+**`cap:watch` 单一职责**：把下面表格里的阈值变成可执行的 OK/ALERT 行。修阈值改 `scripts/cap-watch.ts` 顶部 `THRESHOLDS`（同时改这里表格保持单一来源）。
 
 **告警阈值**：
 - 任一 tenant 单日 LLM > ¥10 → ping 用户问是否在 loop 测试

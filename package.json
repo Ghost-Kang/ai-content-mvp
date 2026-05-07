@@ -54,7 +54,8 @@
     "ds:test:newrank:parser": "tsx scripts/test-newrank-parser.ts",
     "ds:probe:newrank": "tsx --env-file=.env.local scripts/probe-newrank.ts",
     "ds:dump:newrank": "tsx --env-file=.env.local scripts/dump-newrank-schema.ts",
-    "probe:public": "tsx scripts/probe-public-urls.ts"
+    "probe:public": "tsx scripts/probe-public-urls.ts",
+    "cap:watch": "tsx --env-file=.env.local scripts/cap-watch.ts"
   },
   "dependencies": {
     "@clerk/nextjs": "^6.39.2",
