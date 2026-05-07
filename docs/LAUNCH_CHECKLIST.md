@@ -161,6 +161,7 @@
 - [ ] 3 种子用户邀请已发出 ≥ 72 小时
 - [ ] 自己手机开通微信推送 —— 发布后第一批反馈会直接来微信
 - [x] 移动端真机复查通过（2026-05-06，iOS Safari 7 路径全过：landing / dashboard / 新建 run / 运行中 / 完成 / **EditNodeDialog Portal 真机回归 ✓** / 折叠态 + 跳转工具栏）
+- [x] Android 真机回归通过（2026-05-07，OPPO 浏览器；5af68c4 修复 `bg-clip-text` 缺 webkit 前缀致 landing hero "数据找爆点"渐变文字渲染为色块的 bug）
 
 ## 发布后 24 小时 checklist
 
