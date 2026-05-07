@@ -51,12 +51,28 @@ FROM workflow_runs WHERE status = 'done' AND created_at >= NOW() - INTERVAL '7 d
 
 ### B-pre. 当前 cap 配置（2026-05-07 上调后）
 
-- **per-tenant**: `LLM_TENANT_DAILY_CAP_CNY=20`（¥20/天/用户，约 10-20 次 17 帧 run）
-- **global**: `LLM_DAILY_CAP_CNY=100`（¥100/天，3 seed user + 自测预算）
-- **告警阈值**：
-  - 任一 tenant 单日 > ¥10 → ping 用户问是否在 loop 测试
-  - global 单日 > ¥80 → 评估是否 fallback 死循环（看 vercel logs `circuit-breaker`）
-  - **接近 cap 不要直接调高**——先看是不是 bug（重试风暴 / 死循环），再调
+LLM 日 cap（防刷）：
+- **per-tenant**: `LLM_TENANT_DAILY_CAP_CNY=20`（¥20/天/用户）
+- **global**: `LLM_DAILY_CAP_CNY=100`（¥100/天）
+
+工作流月 cap（防爆）：
+- **video count**: `WORKFLOW_MONTHLY_VIDEO_CAP_COUNT=300`（300 clips/月/用户，~17 次完整 17 帧 run）
+- **monthly cost**: `WORKFLOW_MONTHLY_COST_CAP_CNY=500`（默认未变，D23 ARPU margin 上限）
+
+**抽查命令**：
+```bash
+# 当日 LLM 花费（cap=¥20/tenant、¥100 全站）
+pnpm tsx --env-file=.env.local scripts/probe-spend-table.ts
+# 本月视频/cost（cap=300 video/tenant、¥500 cost/tenant）
+pnpm tsx --env-file=.env.local scripts/probe-monthly-usage.ts
+```
+
+**告警阈值**：
+- 任一 tenant 单日 LLM > ¥10 → ping 用户问是否在 loop 测试
+- 任一 tenant 单月 video > 200 → 评估 cap 上调或催 paid plan
+- 任一 tenant 单月 cost > ¥400 → 立即审查（接近 ¥500 红线）
+- global LLM 单日 > ¥80 → 评估是否 fallback 死循环（看 vercel logs `circuit-breaker`）
+- **接近 cap 不要直接调高**——先看是不是 bug（重试风暴 / 死循环），再调
 
 ### B. 成本（替代 PostHog cost prop）
 
