@@ -90,7 +90,15 @@ GROUP BY 1 ORDER BY fail_pct DESC NULLS LAST;
 - **观察阈值**：第一周 P50 不应超过 4 min；**P50 > 5 min 则启动诊断**（开 ticket：`PERF: storyboard→video gap`）。
 - **诊断工具**：`vercel logs --prod --follow` 在 storyboard done 后看 dispatch / worker 启动间隔。
 
-### 2. `llm_spend_daily` ≠ run total cost
+### 2.5 storyboard 镜头语言多样性 < 5 种
+
+- **现象**：移动端真机测 run（topic = 京藏高速半挂车司机故事，17 帧）时，`StoryboardFrameEditor` 顶部 stats 显示 "镜头语言仅 3 种 (建议 ≥5)"（amber 警告）。
+- **根因猜测**：storyboard prompt（`src/lib/prompts/storyboard-prompt.ts`）虽然要求 ≥5 种镜头语言（v2 prompt 硬规则），但 LLM 在窄主题（车祸救援故事场景单一）下会反复用 全景 / 中景 / 特写 三种。
+- **launch 周影响**：用户感知是"画面单调"，但流程能跑完。Solo Review 5 项 checkbox 的"镜头语言多样性"项给用户机会编辑分镜（已经做了，UX 在 watchdog 范围）。
+- **观察方式**：每周抽 5 个 done run 跑 `pnpm tsx --env-file=.env.local scripts/probe-run.ts <runId>` 后看 storyboard step output_json，统计 cameraLanguage 唯一值数。 < 4 种 占比 > 30% → ticket。
+- **不在 launch 阻塞清单**：amber 警告而非 error，UX 给了编辑入口，不影响导出。
+
+### 3. `llm_spend_daily` ≠ run total cost
 
 - **现象**：单 run `total_cost_fen` 包含 LLM + Seedance video，但 `llm_spend_daily` 只跟 LLM 调用。例如 17 段 run 的 LLM = ¥1.78，video（Seedance）= ¥7.91，合计 ¥7.91+ 才是用户付的。
 - **结果**：跨表对账时不要把 `llm_spend_daily` 当总账。月度 cap 算的是 `tenants_monthly_usage`（同时累加 LLM + video），不是 `llm_spend_daily`。
