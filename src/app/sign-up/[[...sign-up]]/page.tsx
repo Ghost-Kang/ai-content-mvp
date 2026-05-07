@@ -32,7 +32,10 @@ export default function SignUpPage() {
           <p className="mt-5 text-3xl font-black leading-[1.1] tracking-tight text-white sm:text-4xl lg:text-5xl">
             <span className="block">别拍脑袋，</span>
             <span className="block">
-              <span className="bg-gradient-to-r from-cyan-200 via-fuchsia-200 to-emerald-200 bg-clip-text text-transparent [-webkit-text-fill-color:transparent]">
+              <span
+                className="bg-gradient-to-r from-cyan-200 via-fuchsia-200 to-emerald-200 bg-clip-text text-transparent"
+                style={{ WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}
+              >
                 数据找爆点
               </span>
               ，
