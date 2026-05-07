@@ -3,7 +3,7 @@
 **Last updated**: 2026-05-06（视频并发 env + EditNodeDialog Portal/折叠 + Playwright e2e + GitHub Actions CI · Clerk Production 切换早上完成）
 **Resume point**: 🟢 **HEAD = `9938ba7` 已 push origin/main**。`pnpm typecheck` clean / `pnpm test`（11 文件 · 91 vitest unit）全绿 / `pnpm test:e2e`（chromium · 7 e2e：2 smoke + 5 EditNodeDialog risk points）全绿 / GitHub Actions `regression` workflow 在 main 跑通 33s。最新 production = `https://ai-content-pciog44pw-ai-content-mvp.vercel.app`（aliased `ai-content-mvp.vercel.app` + `ai-create-content.herwin.top`）。Vercel Production env 已加 `WORKFLOW_VIDEO_CONCURRENCY=3` + `WORKFLOW_VIDEO_MAX_FRAMES_PER_INVOCATION=3`，**已实跑验证并发 3 帧生效**。下一步：launch 收尾 P0（3 seed user 邀请、CAC 10 样本、PIPL 文案、PostHog 看板、移动端复查），距 2026-05-15 launch 9 天。
 **Launch target**: **2026-05-15 Friday**（per LAUNCH_CHECKLIST，距今 9 天；不是 6-week 计划）
-**Current phase**: 🟢 **W5 launch 收尾** — production deploy + healthz 已完成；P0 收尾：3 seed user 邀请已发（用户告知）✅、CAC 10 样本（自动化矩阵 10/10）✅、PIPL 文案（已验证 sign-up 完整版 + sign-in 精简版）✅、PostHog v3 看板（待用户跑 happy path 看 dashboard，SOP 见 `docs/LAUNCH_VALIDATION_SOP.md`）⏳、移动端人工复查（待用户真机跑，SOP 同上）⏳。RLS 真启用准备已就绪，等运维在 Supabase 跑迁移（job `bd1d731a` + 文档 2026-05-14 复审）。
+**Current phase**: 🟢 **W5 launch 收尾** — production deploy + healthz 已完成；P0 收尾：3 seed user 邀请已发（用户告知）✅、CAC 10 样本（自动化矩阵 10/10）✅、PIPL 文案（已验证 sign-up 完整版 + sign-in 精简版）✅、CN→Kimi 路由（router.test 6 case + prod spend table 11/11 kimi）✅、字数合规降级签字（DECISIONS_LOG overlay）✅、PostHog（**降级：launch 第一周 ANALYTICS_DISABLED=1，W5+1 启用境内合规实例**，详见 DECISIONS_LOG 2026-05-06 PostHog 段）⚠️、移动端人工复查（待用户真机跑，SOP 见 `docs/LAUNCH_VALIDATION_SOP.md`）⏳。RLS 真启用准备已就绪，等运维在 Supabase 跑迁移（job `bd1d731a` + 文档 2026-05-14 复审）。
 
 **W4-01 / 新榜 真实情况（2026-04-26 probe 结论）**：
 - **Client 层（不改）**：

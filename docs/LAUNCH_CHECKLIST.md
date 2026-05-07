@@ -114,13 +114,12 @@
 - **状态**：✅ 通过（Task #33 · W4-02）
 - **证据**：`RUNBOOK.md`
 
-### [ ] PostHog 4 事件发火
+### [~] PostHog 4 事件发火（**降级：launch 第一周关闭，W5+1 启用境内 PostHog**）
 
-- **状态**：Task #28 已完成代码接线，未做生产回归
-- **怎么验**：
-  1. 生产环境走一遍 happy path
-  2. PostHog → Events → 确认见到 `session_started` / `script_generated` / `script_approved` / `script_exported` 4 个
-- **证据**：（填 PostHog 截图链接）
+- **状态**：⚠️ 降级签字（2026-05-06，详见 `docs/DECISIONS_LOG.md` Launch overlay 段「2026-05-06 PostHog 暂关」）
+- **背景**：4 个事件代码接线已完成（`src/lib/analytics/server.ts`），但 `assertCnAnalyticsCompliance` CN gate + 当前 PostHog Cloud (`us.i.posthog.com`) 不在白名单 → CN 区域事件被静默丢弃。
+- **临时处置**：Vercel Production 加 `ANALYTICS_DISABLED=1`，escape hatch 见 `analytics/server.ts:26-29`。Launch 第一周用 Vercel Logs / Supabase `workflow_runs` / `llm_spend_daily` 直接看运营数据。
+- **后续**：W5+1（launch 后 1 周内）启用境内 PostHog（自建于 Aliyun/Tencent）或换合规中转，重新打开 SOP `docs/LAUNCH_VALIDATION_SOP.md` #3 验证 4 事件落表。
 
 ### [ ] 3 种子用户邀请发出
 

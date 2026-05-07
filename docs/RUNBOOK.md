@@ -13,6 +13,7 @@
 | 熔断器状态 | Vercel Logs 里搜 `circuit-breaker` / `All providers cooling down` |
 | PostHog 错误事件 | PostHog → `LLM_ERROR` 事件 |
 | 健康检查 | `curl https://<prod>/api/healthz` |
+| 大陆可达 / 去海外单点 / 多 POP 探测 | `docs/OBSERVABILITY_CN.md` · 单站脚本 `PROBE_BASE_URL=https://<prod> pnpm probe:public` |
 | 回滚部署 | Vercel Dashboard → Deployments → 选上一版 → Promote to Production |
 
 ---

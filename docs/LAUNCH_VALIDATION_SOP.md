@@ -9,7 +9,16 @@
 
 ## #3 PostHog v3 看板确认（产生事件 + dashboard 见到）
 
-### 背景
+> **2026-05-06 状态变更**：PostHog 暂关。此 SOP 段保留作 launch 后启用 D 方案（境内 PostHog 自建）后的回归脚本。**launch 前不必跑此项**。
+>
+> **背景**：审视 cursor 改动时发现 launch 阻塞合规 bug：
+> - `src/server/context.ts:72` 新 tenant 默认 `region='CN'`
+> - `src/lib/analytics/server.ts:60-69` CN gate 检查 `POSTHOG_HOST` 是否在 `.cn / .aliyuncs.com / tencentcs.com` 白名单
+> - prod 当前 PostHog Cloud `us.i.posthog.com` 不在白名单 → CN 事件全部抛错被 try/catch 吞掉 → 静默丢弃
+>
+> **临时处置（已执行 2026-05-06）**：Vercel Production env 加 `ANALYTICS_DISABLED=1`（escape hatch 在 `analytics/server.ts:26-29` explicit 提供）。Launch 第一周用 Vercel Logs + Supabase 直接看运营数据；W5+1 完成境内 PostHog 自建后此 SOP 重新启用。
+
+### 背景（保留 — 启用境内 PostHog 后用）
 
 代码层 4 个事件接线全做完（`src/lib/analytics/server.ts`）：
 - `session_started` — 用户首次访问 dashboard
@@ -17,7 +26,7 @@
 - `script_approved` — solo review gate 通过
 - `script_exported` — export 节点产出 zip
 
-### 步骤
+### 步骤（启用境内 PostHog 后用）
 
 1. **打开 prod**：`https://ai-create-content.herwin.top`
 2. **登录**：用你自己的 prod 账号（`xukang.wang@gmail.com`）
