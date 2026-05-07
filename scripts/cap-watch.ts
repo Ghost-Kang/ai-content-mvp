@@ -9,6 +9,11 @@
 //   pnpm cap:watch --json                # machine readable (for cron / webhook)
 //
 // Exit code: 0 = all clear, 1 = ≥1 ALERT (cron-friendly).
+//
+// WeChat push (optional): set SERVERCHAN_KEY in .env.local. When ≥1 ALERT
+// fires, the script POSTs a digest to https://sctapi.ftqq.com/<KEY>.send,
+// which delivers to your "方糖" public account on WeChat. Failures here
+// only console.warn — they never mask the real exit code.
 
 import postgres from 'postgres';
 
@@ -134,7 +139,39 @@ async function main() {
     console.log(alertCount === 0 ? '\nall clear.' : `\n${alertCount} ALERT(s) — see above.`);
   }
 
-  process.exit(findings.some((f) => f.level === 'ALERT') ? 1 : 0);
+  const alerts = findings.filter((f) => f.level === 'ALERT');
+  if (alerts.length > 0) {
+    await pushServerChan(alerts);
+  }
+
+  process.exit(alerts.length > 0 ? 1 : 0);
+}
+
+async function pushServerChan(alerts: Finding[]): Promise<void> {
+  const key = process.env.SERVERCHAN_KEY?.trim();
+  if (!key) return;  // not configured — silently skip (e.g. local probes)
+
+  const title = `[ai-content-mvp] ${alerts.length} cap ALERT`;
+  const desp = alerts
+    .map((f) => {
+      const subj = f.subject === 'global' ? 'global' : f.subject.slice(0, 8);
+      return `- **${f.scope}** \`${subj}\` ${f.current} (${f.threshold})${f.detail ? `\n  ${f.detail}` : ''}`;
+    })
+    .join('\n');
+
+  try {
+    const body = new URLSearchParams({ title, desp });
+    const res = await fetch(`https://sctapi.ftqq.com/${key}.send`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/x-www-form-urlencoded' },
+      body,
+    });
+    if (!res.ok) {
+      console.warn(`[cap-watch] ServerChan HTTP ${res.status} — alert exit code unaffected`);
+    }
+  } catch (e) {
+    console.warn('[cap-watch] ServerChan POST failed:', e instanceof Error ? e.message : e);
+  }
 }
 
 main().catch((e) => {
