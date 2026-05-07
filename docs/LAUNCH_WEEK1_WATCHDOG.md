@@ -49,6 +49,15 @@ SELECT
 FROM workflow_runs WHERE status = 'done' AND created_at >= NOW() - INTERVAL '7 days';
 ```
 
+### B-pre. 当前 cap 配置（2026-05-07 上调后）
+
+- **per-tenant**: `LLM_TENANT_DAILY_CAP_CNY=20`（¥20/天/用户，约 10-20 次 17 帧 run）
+- **global**: `LLM_DAILY_CAP_CNY=100`（¥100/天，3 seed user + 自测预算）
+- **告警阈值**：
+  - 任一 tenant 单日 > ¥10 → ping 用户问是否在 loop 测试
+  - global 单日 > ¥80 → 评估是否 fallback 死循环（看 vercel logs `circuit-breaker`）
+  - **接近 cap 不要直接调高**——先看是不是 bug（重试风暴 / 死循环），再调
+
 ### B. 成本（替代 PostHog cost prop）
 
 ```sql
