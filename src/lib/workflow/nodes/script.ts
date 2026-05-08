@@ -60,7 +60,12 @@ export interface ScriptOutput {
 
 const CHAR_TARGET_LO = 190;
 const CHAR_TARGET_HI = 215;
-const MAX_LLM_RETRIES = 3;
+// Each Kimi 32k attempt runs ~80s, so 3 retries push P95 to 205s and eat
+// 68% of the 5-min run budget. bestAttempt always picks the closest-to-spec
+// output and lets Solo Review handle the last-mile compliance, so dropping
+// from 3 → 2 retries trims ~60s off P95 without changing what the user
+// ultimately approves. Storyboard already runs at 2 — script now matches.
+const MAX_LLM_RETRIES = 2;
 
 // ─── Runner ───────────────────────────────────────────────────────────────────
 
