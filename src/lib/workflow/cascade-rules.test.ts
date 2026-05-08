@@ -1,5 +1,10 @@
 import { describe, it, expect } from 'vitest';
-import { evaluateStepAction, stepIndexOf } from './cascade-rules';
+import {
+  CHECKPOINT_NODES,
+  evaluateStepAction,
+  shouldClearCheckpointOnCascade,
+  stepIndexOf,
+} from './cascade-rules';
 import type { NodeType, StepStatus } from './types';
 
 describe('evaluateStepAction — runStatus running', () => {
@@ -108,5 +113,43 @@ describe('stepIndexOf', () => {
     expect(stepIndexOf('storyboard')).toBe(2);
     expect(stepIndexOf('video')).toBe(3);
     expect(stepIndexOf('export')).toBe(4);
+  });
+});
+
+// ─── Checkpoint cascade policy ────────────────────────────────────────────────
+// Backs the fix for the silent-stale-video-on-edit bug: video.loadCheckpoint
+// reads workflow_steps.outputJson as a resume seed, so cascade MUST clear
+// the checkpoint when an upstream change marks video dirty — otherwise the
+// runner short-circuits "already rendered" against the old frames.
+describe('CHECKPOINT_NODES + shouldClearCheckpointOnCascade', () => {
+  it('lists video as the only checkpoint node today', () => {
+    // If you add a new runner that reads its own prior outputJson before
+    // overwriting, ADD IT HERE — otherwise upstream edits will silently
+    // skip its re-execution. Update this test deliberately.
+    expect(Array.from(CHECKPOINT_NODES).sort()).toEqual(['video']);
+  });
+
+  it('clears video when upstream (script / storyboard) cascades', () => {
+    expect(shouldClearCheckpointOnCascade('video', stepIndexOf('script'))).toBe(true);
+    expect(shouldClearCheckpointOnCascade('video', stepIndexOf('storyboard'))).toBe(true);
+    // Edge: anchor at topic (0) should still cascade-clear video.
+    expect(shouldClearCheckpointOnCascade('video', stepIndexOf('topic'))).toBe(true);
+  });
+
+  it('preserves video checkpoint when video itself is the anchor (retry video)', () => {
+    // retryStep(video) calls markDownstreamDirty(stepIndexOf('video')) — only
+    // export should cascade. Video keeps its checkpoint so per-frame partial
+    // renders survive the retry (legitimate continuation behavior).
+    expect(shouldClearCheckpointOnCascade('video', stepIndexOf('video'))).toBe(false);
+    // Same when retrying export — video isn't even downstream.
+    expect(shouldClearCheckpointOnCascade('video', stepIndexOf('export'))).toBe(false);
+  });
+
+  it('returns false for non-checkpoint nodes regardless of anchor', () => {
+    const nonCheckpoint: NodeType[] = ['topic', 'script', 'storyboard', 'export'];
+    for (const nodeType of nonCheckpoint) {
+      expect(shouldClearCheckpointOnCascade(nodeType, stepIndexOf('topic'))).toBe(false);
+      expect(shouldClearCheckpointOnCascade(nodeType, stepIndexOf('script'))).toBe(false);
+    }
   });
 });

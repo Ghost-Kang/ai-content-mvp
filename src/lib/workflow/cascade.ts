@@ -27,7 +27,7 @@ import { db, workflowSteps, workflowRuns } from '@/db';
 import type { NodeType, StepStatus } from './types';
 // Pure rules (client-safe) live in ./cascade-rules so 'use client' bundles
 // don't pull in drizzle/db. Re-exported below for back-compat.
-import { stepIndexOf } from './cascade-rules';
+import { CHECKPOINT_NODES, shouldClearCheckpointOnCascade, stepIndexOf } from './cascade-rules';
 
 export {
   evaluateStepAction,
@@ -36,6 +36,8 @@ export {
   EDITABLE_STEP_STATUSES,
   RETRYABLE_STEP_STATUSES,
   SKIPPABLE_STEP_STATUSES,
+  CHECKPOINT_NODES,
+  shouldClearCheckpointOnCascade,
   type CascadeAction,
   type StepActionGuardInput,
   type StepActionGuardResult,
@@ -55,14 +57,46 @@ export async function markDownstreamDirty(
   tenantId: string,
   anchorStepIndex: number,
 ): Promise<number> {
+  // Step 1: clear stale checkpoint state on downstream nodes that read
+  // their own prior outputJson as a resume seed (CHECKPOINT_NODES — today
+  // only `video`). Without this, an upstream edit cascades status='dirty'
+  // but `video.loadCheckpoint` finds the old N rendered frames in
+  // outputJson, treats them as "already rendered", and skips re-rendering
+  // entirely → user gets old video URLs against a new storyboard.
+  //
+  // Scoped to the same anchor + status filter as the dirty flip below, so
+  // a legitimate continuation checkpoint (status='pending' between QStash
+  // worker invocations) is never clobbered.
+  //
+  // MUST run BEFORE the dirty UPDATE — once status is flipped to 'dirty'
+  // the inArray filter no longer matches.
+  for (const checkpointNode of CHECKPOINT_NODES) {
+    if (!shouldClearCheckpointOnCascade(checkpointNode, anchorStepIndex)) continue;
+    await db
+      .update(workflowSteps)
+      .set({
+        outputJson: {} as object,
+        costFen:    0,
+        updatedAt:  new Date(),
+      })
+      .where(
+        and(
+          eq(workflowSteps.runId, runId),
+          eq(workflowSteps.tenantId, tenantId),
+          eq(workflowSteps.nodeType, checkpointNode),
+          inArray(workflowSteps.status, ['done', 'skipped', 'failed']),
+        ),
+      );
+  }
+
   const updated = await db
     .update(workflowSteps)
     .set({
       status:    'dirty' satisfies StepStatus,
-      // NB: we deliberately don't reset outputJson / costFen here — the row
-      // keeps its last-known good output until the resume actually overwrites
-      // it. This means the UI can still preview the stale output if curious
-      // and we don't lose data on accidental cascades.
+      // For non-checkpoint nodes (script / storyboard / export) we keep
+      // outputJson around so the UI can preview the stale output between
+      // cascade and re-run; the runner overwrites it unconditionally on
+      // re-execution. Checkpoint nodes were wiped above.
       updatedAt: new Date(),
     })
     .where(

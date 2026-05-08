@@ -11,7 +11,7 @@
 //
 // Run: pnpm wf:test:cascade
 
-import { eq } from 'drizzle-orm';
+import { and, eq } from 'drizzle-orm';
 import {
   db,
   tenants,
@@ -383,6 +383,81 @@ async function caseTenantIsolation() {
   await cleanup(fB);
 }
 
+// ─── Case 8: cascade clears video checkpoint on upstream edit ─────────────────
+// Regression for the silent-stale-video bug: applyStepEdit on storyboard MUST
+// clear video.outputJson + costFen, otherwise video.loadCheckpoint reads the
+// pre-edit frames and short-circuits the re-render. Pair: applyStepRetry on
+// video itself must NOT touch video.outputJson (legitimate continuation
+// checkpoint).
+
+async function caseCascadeClearsVideoCheckpoint() {
+  console.log('\n[case 8] cascade — upstream edit clears video checkpoint, video retry preserves it');
+  const f = await seedRun('checkpoint');
+
+  const oldFrames = {
+    frames: [
+      { index: 1, jobId: 'old-1', videoUrl: 'https://example.com/old-1.mp4',
+        provider: 'fake', model: 'fake-1', costFen: 100, actualDurationSec: 5, attemptCount: 1 },
+      { index: 2, jobId: 'old-2', videoUrl: 'https://example.com/old-2.mp4',
+        provider: 'fake', model: 'fake-1', costFen: 100, actualDurationSec: 5, attemptCount: 1 },
+    ],
+    totalCostFen: 200,
+    totalDurationSec: 10,
+    provider: 'fake',
+    model: 'fake-1',
+    resolution: '480p',
+    incomplete: true,
+  };
+
+  await seedStep({ runId: f.runId, tenantId: f.tenantId, nodeType: 'script',     status: 'done',   outputJson: { frames: [{ index: 1, voiceover: 'old' }] } });
+  await seedStep({ runId: f.runId, tenantId: f.tenantId, nodeType: 'storyboard', status: 'done',   outputJson: { frames: [{ index: 1, imagePrompt: 'old', durationSec: 5 }] } });
+  await seedStep({ runId: f.runId, tenantId: f.tenantId, nodeType: 'video',      status: 'done',   outputJson: oldFrames, costFen: 200 });
+  await seedStep({ runId: f.runId, tenantId: f.tenantId, nodeType: 'export',     status: 'done',   outputJson: { ok: true } });
+
+  // ─── Sub-case A: upstream edit on storyboard clears video checkpoint ───
+  const newStoryboard = { frames: [{ index: 1, imagePrompt: 'NEW', durationSec: 5 }] };
+  await applyStepEdit({
+    runId: f.runId, tenantId: f.tenantId, nodeType: 'storyboard', outputJson: newStoryboard,
+  });
+
+  let rows = await db.select().from(workflowSteps).where(eq(workflowSteps.runId, f.runId));
+  let video = rows.find((r) => r.nodeType === 'video')!;
+  let export_ = rows.find((r) => r.nodeType === 'export')!;
+
+  expect(video.status === 'dirty', 'video cascaded → dirty after storyboard edit');
+  const videoOutput = video.outputJson as { frames?: unknown };
+  expect(
+    !Array.isArray(videoOutput.frames) || videoOutput.frames.length === 0,
+    `video.outputJson.frames cleared (was 2 old frames) — got ${JSON.stringify(videoOutput).slice(0, 80)}`,
+  );
+  expect(video.costFen === 0, `video.costFen reset to 0 (was 200) — got ${video.costFen}`);
+  expect(export_.status === 'dirty', 'export cascaded → dirty');
+  // Non-checkpoint downstream nodes still keep their outputJson (UI preview).
+  expect(
+    (export_.outputJson as { ok?: boolean }).ok === true,
+    'export.outputJson preserved (non-checkpoint nodes keep stale preview)',
+  );
+
+  // ─── Sub-case B: re-seed checkpoint, then retryStep('video') keeps it ──
+  await db.update(workflowSteps)
+    .set({ status: 'failed', outputJson: oldFrames as object, costFen: 200 })
+    .where(and(eq(workflowSteps.runId, f.runId), eq(workflowSteps.nodeType, 'video')));
+
+  await applyStepRetry({ runId: f.runId, tenantId: f.tenantId, nodeType: 'video' });
+
+  rows = await db.select().from(workflowSteps).where(eq(workflowSteps.runId, f.runId));
+  video = rows.find((r) => r.nodeType === 'video')!;
+  expect(video.status === 'pending', 'video flipped to pending on retry');
+  const retainedFrames = (video.outputJson as { frames?: unknown[] }).frames ?? [];
+  expect(
+    Array.isArray(retainedFrames) && retainedFrames.length === 2,
+    `video.outputJson preserved on self-retry (continuation checkpoint) — got ${retainedFrames.length} frames`,
+  );
+  expect(video.costFen === 200, `video.costFen preserved on self-retry — got ${video.costFen}`);
+
+  await cleanup(f);
+}
+
 // ─── Main ─────────────────────────────────────────────────────────────────────
 
 async function main() {
@@ -395,6 +470,7 @@ async function main() {
   await caseApplyStepSkip();
   await caseOrchestratorResume();
   await caseTenantIsolation();
+  await caseCascadeClearsVideoCheckpoint();
 
   if (totalFailures === 0) {
     console.log('\n✅ All W3-06 assertions pass.');

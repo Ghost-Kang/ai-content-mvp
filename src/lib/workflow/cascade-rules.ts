@@ -107,3 +107,29 @@ const NODE_STEP_INDEX: Record<NodeType, number> = {
 export function stepIndexOf(nodeType: NodeType): number {
   return NODE_STEP_INDEX[nodeType];
 }
+
+// ─── Checkpoint nodes ─────────────────────────────────────────────────────────
+// Nodes whose runner reads `workflow_steps.outputJson` as a *resume seed*
+// before overwriting it. For these, `markDownstreamDirty` must clear
+// outputJson + costFen alongside the dirty flag — otherwise an upstream edit
+// cascades status='dirty' but the runner short-circuits to "already done"
+// using the stale prior output and silently re-uses old frames / outputs.
+//
+// Currently only `video` (see lib/workflow/nodes/video.ts:loadCheckpoint —
+// it returns existing frames straight from outputJson and `pendingFrames`
+// filters them out, so a non-empty checkpoint = "skip rendering"). Other
+// nodes (script / storyboard / export) overwrite outputJson unconditionally
+// on every execution, so leaving prior values is harmless and even useful
+// (UI can still preview the stale output between cascade and re-run).
+//
+// ANY future runner that calls `loadCheckpoint`-style logic against its
+// own outputJson MUST be added here, or upstream edits will be silently
+// invisible at that stage.
+export const CHECKPOINT_NODES: ReadonlySet<NodeType> = new Set(['video']);
+
+export function shouldClearCheckpointOnCascade(
+  nodeType:        NodeType,
+  anchorStepIndex: number,
+): boolean {
+  return CHECKPOINT_NODES.has(nodeType) && stepIndexOf(nodeType) > anchorStepIndex;
+}
