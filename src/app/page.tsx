@@ -19,7 +19,7 @@ export default async function Home() {
       <section className="mx-auto grid min-h-[calc(100vh-4rem)] max-w-7xl items-center gap-10 px-4 py-10 sm:px-6 lg:grid-cols-2 lg:gap-12 lg:py-16">
         {/* Left column · 主标题 + 三行金句 + CTA */}
         <div className="flex min-w-0 flex-col">
-          <TechBadge tone="cyan">AI 短视频工作流 · Seed 内测</TechBadge>
+          <TechBadge tone="cyan">AI 视频创作平台 · Seed 内测</TechBadge>
 
           {/* 主标题 — 接金句字号、白色、定位用 */}
           <h2 className="mt-5 text-3xl font-semibold text-slate-200 sm:text-4xl lg:text-5xl xl:text-[3.7rem]">
