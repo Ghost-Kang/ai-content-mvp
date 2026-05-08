@@ -21,6 +21,11 @@ const PUBLIC_PATTERNS = [
   // workflow_runs.status is the AuthZ (only pending/failed runs can
   // be picked up).
   '/api/workflow/run',
+  // 2026-05-08 watchdog — server-to-server too. Auth is the
+  // `Authorization: Bearer ${CRON_SECRET}` check inside the route. Without
+  // bypassing Clerk here, Vercel Cron / GitHub Actions / curl all get 307'd
+  // to /sign-in and the route handler never runs.
+  '/api/admin/watchdog',
 ];
 if (process.env.NODE_ENV === 'development') {
   PUBLIC_PATTERNS.push('/dev(.*)');
