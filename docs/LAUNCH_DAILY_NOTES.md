@@ -81,3 +81,46 @@
 - ☐ 任何 ALERT / failed run 立即写进流水段
 
 **情绪温度**：8（闸门全关 + 工具到位，等真用户）
+
+---
+
+### 2026-05-08（周五 / T-7 启动前夜）
+
+**今日指标**（22:00 三件套待跑后回填）：
+- 全站 LLM 今日 ¥— / ¥100 cap
+- 当月 video 总：— clips / 900
+- 当月 cost 总：¥— / ¥1500
+- ALERT 数：—
+
+**Run 总览**：22:00 后回填
+
+**Seed user 反馈**：今日 0 主动反馈（D-5 周一才主动 ping）
+
+**今日 commits**（`git log --oneline 5a3a607..e830575` 7 个）：
+- `9ab1160` fix(middleware): Clerk bypass `/api/admin/watchdog`（cron 401 修复）
+- `0e6a5ce` fix(llm): `requireEnv` → `ProviderConfigError`（错误归类）
+- `711d467` perf(script): `MAX_LLM_RETRIES 3→2` + 90s provider timeout（P95 -60s 预计）
+- `7add477` docs(launch): happy path 红线 <5min → P50<7/P95<10min
+- `c7247b4` ops(launch): `perf:snapshot` 每日 P50/P95 收集器
+- `8f5f44a` docs(launch): T-7 倒计时 + deepseek-as-primary canary research
+- `e830575` chore(brand): "AI 视频创作平台" + always-visible mobile header
+
+**事件流水**：
+- 上午：发现 cursor 在 working tree 改了 21 个文件（品牌改名 + Android 渐变策略反转），评估发现"max-sm 实色回退"会回退已验证的 5af68c4
+- cursor 改动被外部 `git restore` 撤回 → 选 1+3 路径：从中筛安全增益（品牌改名 + 移动端 header 始终可见）单独 re-apply 成 `e830575`；5af68c4 inline-style 完整保留
+- `e830575` 三层回归：tsc clean / vitest 107 green / 真机 UI 通过
+- 7 个 commits push 到 `origin/main`（`5a3a607..e830575`）
+
+**新建 GitHub Issues**：今日 0 新增
+
+**明日计划**（D-7 周六 5/9，per `LAUNCH_T_MINUS_7.md`）：
+- ☐ `vercel env add DEEPSEEK_API_KEY production` → `sk-fdf02019...`
+- ☐ `vercel env add LLM_PROVIDER_TIMEOUT_MS production` → `90000`
+- ☐ `vercel env add CRON_SECRET production` → `421bc928...`
+- ☐ `vercel deploy --prod`（激活新 env）
+- ☐ `curl /api/healthz` 200 + `curl -H "Authorization: Bearer <CRON_SECRET>" /api/admin/watchdog` 200+JSON
+- ☐ 微信主动联系 tenant `1985b6c6`（昨天 LLM 失败的 seed user）
+- ☐ 跑 `probe-fb5632a7-video.ts` 看 0-videos 异常
+- ☐ 22:00 三件套（`cap:watch` / `prod:today` / `perf:snapshot`）
+
+**情绪温度**：—（22:00 回填）
