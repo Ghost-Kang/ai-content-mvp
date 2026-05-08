@@ -58,7 +58,8 @@
     "probe:public": "tsx scripts/probe-public-urls.ts",
     "cap:watch": "tsx --env-file=.env.local scripts/cap-watch.ts",
     "prod:watchdog": "tsx --env-file=.env.local scripts/recover-stuck-runs.ts",
-    "prod:today": "tsx --env-file=.env.local scripts/probe-today.ts"
+    "prod:today": "tsx --env-file=.env.local scripts/probe-today.ts",
+    "perf:snapshot": "tsx --env-file=.env.local scripts/measure-happy-path.ts"
   },
   "dependencies": {
     "@clerk/nextjs": "^6.39.2",

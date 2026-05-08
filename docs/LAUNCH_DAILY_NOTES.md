@@ -46,6 +46,8 @@
 ## 实战开始
 
 <!-- 用上面模板从 5-08 起每天追加一段 -->
+<!-- `pnpm perf:snapshot` 也会每天自动 append 一个 auto-perf 块（标记 perf-auto:YYYY-MM-DD），同名标记当天只 append 一次。手工模板和 auto-perf 互不冲突。 -->
+<!-- 5 日聚合后：`awk -F, 'NR>1' docs/perf-snapshots.csv | tail -5` 看 P50/P95 趋势。 -->
 
 ### 2026-05-07（周三 / SEED 内测开放日）
 
