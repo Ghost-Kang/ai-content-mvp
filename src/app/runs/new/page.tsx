@@ -9,7 +9,7 @@ import { TechBadge, TechCard, TechHeader, TechPageShell } from '@/components/lay
 export const dynamic = 'force-dynamic';
 
 export const metadata = {
-  title: '新建工作流 — AI 内容营销工作室',
+  title: '新建工作流 — AI 视频创作平台',
 };
 
 export default function NewRunPage() {

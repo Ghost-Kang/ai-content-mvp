@@ -5,7 +5,7 @@ import { QuickCreateForm } from '@/components/create/QuickCreateForm';
 import { TechBadge, TechCard, TechHeader, TechPageShell } from '@/components/layout/TechPage';
 
 export const metadata = {
-  title: '快速创作 — AI内容营销工作室',
+  title: '快速创作 — AI 视频创作平台',
 };
 
 export default function CreatePage() {

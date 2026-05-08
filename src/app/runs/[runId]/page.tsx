@@ -11,7 +11,7 @@ import { TechHeader, TechPageShell } from '@/components/layout/TechPage';
 export const dynamic = 'force-dynamic';
 
 export const metadata = {
-  title: '工作流详情 — AI 内容营销工作室',
+  title: '工作流详情 — AI 视频创作平台',
 };
 
 interface PageProps {

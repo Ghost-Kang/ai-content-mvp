@@ -1,4 +1,4 @@
-# NEXUS-Sprint Master Plan — AI 内容营销工作室 MVP
+# NEXUS-Sprint Master Plan — AI 视频创作平台 MVP
 
 > ## 🔴 v2.0 SOLO SUPERSESSION (2026-04-19)
 >

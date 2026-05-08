@@ -1,4 +1,4 @@
-# Launch Package — AI 内容营销工作室 MVP
+# Launch Package — AI 视频创作平台 MVP
 
 **Status**: TEMPLATE — populated during Week 4 (2026-05-08 → launch-day)
 **Target launch**: **UNDER REVIEW** (options: Thu 2026-05-14 / Fri 2026-05-15 / **Mon 2026-05-18 recommended**) — decision deadline 2026-04-25 per SPRINT_PLAN RR6

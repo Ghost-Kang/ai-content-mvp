@@ -34,7 +34,7 @@ export function TechPageShell({ children }: { children: ReactNode }) {
 }
 
 export function TechHeader({
-  brand = 'AI 内容营销工作室',
+  brand = 'AI 视频创作平台',
   brandHref = '/dashboard',
   backHref,
   backLabel,
@@ -60,7 +60,7 @@ export function TechHeader({
               <span className="absolute inset-[-2px] -z-10 rounded-xl ring-aurora animate-aurora-spin opacity-70" />
               AI
             </span>
-            <span className="hidden truncate text-sm font-semibold tracking-wide text-white sm:inline">{brand}</span>
+            <span className="truncate text-xs font-semibold tracking-wide text-white sm:text-sm">{brand}</span>
           </Link>
         </div>
         <div className="shrink-0 flex items-center gap-2">{right}</div>

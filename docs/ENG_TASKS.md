@@ -1,4 +1,4 @@
-# Engineering Task Breakdown — AI 内容营销工作室 (Weeks 2–4)
+# Engineering Task Breakdown — AI 视频创作平台 (Weeks 2–4)
 
 > **🔴 SUPERSEDED 2026-04-19**: 本清单 75 任务假设 3 工程师。Solo 执行请读 **ENG_TASKS_V2_SOLO.md**（30 任务 / 21 eng-days / 1 张 migration）。本文件保留作未来团队扩张的 Plan B。
 

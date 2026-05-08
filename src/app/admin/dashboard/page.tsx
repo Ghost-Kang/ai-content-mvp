@@ -38,7 +38,7 @@ import { TechBadge, TechHeader, TechPageShell } from '@/components/layout/TechPa
 export const dynamic = 'force-dynamic';
 
 export const metadata = {
-  title: '运营 dashboard — AI 内容营销工作室',
+  title: '运营 dashboard — AI 视频创作平台',
 };
 
 const STATUS_LABEL: Record<WorkflowStatus, string> = {

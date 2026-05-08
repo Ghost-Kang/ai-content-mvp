@@ -1,4 +1,4 @@
-# Discovery Package — AI 内容营销工作室 MVP
+# Discovery Package — AI 视频创作平台 MVP
 **Version**: 1.1  
 **Date**: 2026-04-17（用户访谈后更新）  
 **Sprint**: Week 1 of 4  
@@ -9,7 +9,7 @@
 
 ## EXECUTIVE SUMMARY
 
-This package is the complete discovery output for the AI 内容营销工作室 MVP sprint. It is the single source of truth for all strategy and implementation decisions in Weeks 2–4. Do not begin design or engineering work until the 10 pre-build decisions (Section 4) have been resolved.
+This package is the complete discovery output for the AI 视频创作平台 MVP sprint. It is the single source of truth for all strategy and implementation decisions in Weeks 2–4. Do not begin design or engineering work until the 10 pre-build decisions (Section 4) have been resolved.
 
 **The product**: A minimum viable workflow system for solo/2-person marketing teams at 10–200 person B2B SaaS companies. Core loop: content strategy generation → multi-channel production (WeChat 公众号 + LinkedIn) → human review/approval → performance retrospective.
 

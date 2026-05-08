@@ -36,7 +36,7 @@ import { TechBadge, TechCard, TechHeader, TechPageShell } from '@/components/lay
 export const dynamic = 'force-dynamic';
 
 export const metadata = {
-  title: '热门选题 — AI 内容营销工作室',
+  title: '热门选题 — AI 视频创作平台',
 };
 
 const TOPN_PER_PLATFORM = 12;

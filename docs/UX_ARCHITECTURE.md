@@ -1,4 +1,4 @@
-# AI 内容营销工作室 — UX Architecture & Design Brief
+# AI 视频创作平台 — UX Architecture & Design Brief
 
 **Version**: 1.0 | **Date**: 2026-04-17 | **Sprint**: 4-week MVP
 
@@ -9,7 +9,7 @@
 ### Complete Site Map
 
 ```
-AI 内容营销工作室
+AI 视频创作平台
 │
 ├── /dashboard                          # Home — default landing post-login
 │

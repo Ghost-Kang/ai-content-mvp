@@ -89,7 +89,7 @@ export default async function Home() {
       </section>
 
       <footer className="border-t border-white/5 px-6 py-6 text-center text-xs text-slate-500">
-        © {new Date().getFullYear()} AI 内容营销工作室 · Seed 内测期 · 数据合规符合 CAC AI 内容生成规范
+        © {new Date().getFullYear()} AI 视频创作平台 · Seed 内测期 · 数据合规符合 CAC AI 内容生成规范
       </footer>
     </TechPageShell>
   );
@@ -105,8 +105,8 @@ function LandingHeader({ isSignedIn }: { isSignedIn: boolean }) {
             <span className="absolute inset-[-2px] -z-10 rounded-xl ring-aurora animate-aurora-spin opacity-70" />
             AI
           </span>
-          <span className="hidden truncate text-sm font-semibold tracking-wide text-white sm:inline">
-            AI 内容营销工作室
+          <span className="truncate text-xs font-semibold tracking-wide text-white sm:text-sm">
+            AI 视频创作平台
           </span>
         </Link>
 

@@ -11,7 +11,7 @@ import { TechBadge, TechButton, TechHeader, TechPageShell } from '@/components/l
 export const dynamic = 'force-dynamic';
 
 export const metadata = {
-  title: '工作流 — AI 内容营销工作室',
+  title: '工作流 — AI 视频创作平台',
 };
 
 export default function RunsPage() {

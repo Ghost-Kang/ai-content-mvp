@@ -16,7 +16,7 @@ const geistMono = localFont({
 });
 
 export const metadata: Metadata = {
-  title: "AI内容营销工作室",
+  title: "AI 视频创作平台",
   description: "为抖音和小红书生成品牌化内容",
 };
 

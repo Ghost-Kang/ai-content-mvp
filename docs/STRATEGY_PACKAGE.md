@@ -1,4 +1,4 @@
-# Strategy Package — AI 内容营销工作室 MVP
+# Strategy Package — AI 视频创作平台 MVP
 
 > **🔴 SUPERSEDED 2026-04-19**: 本文件假设 3 工程师团队。Solo 执行请读 **STRATEGY_PACKAGE_V2_SOLO.md**（21 eng-days / 单渠道抖音 / 单公式一 / 单 Solo review）。本文件保留作多人协作 Plan B。
 

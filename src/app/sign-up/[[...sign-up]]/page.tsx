@@ -11,7 +11,7 @@ export default function SignUpPage() {
             <span className="absolute inset-[-2px] -z-10 rounded-xl ring-aurora animate-aurora-spin opacity-70" />
             AI
           </span>
-          <span className="text-sm font-semibold tracking-wide text-white">AI 内容营销工作室</span>
+          <span className="text-sm font-semibold tracking-wide text-white">AI 视频创作平台</span>
         </Link>
         <Link
           href="/sign-in"
