@@ -21,13 +21,13 @@ export default async function Home() {
         <div className="flex min-w-0 flex-col">
           <TechBadge tone="cyan">AI 短视频工作流 · Seed 内测</TechBadge>
 
-          {/* 主标题 — 中等字号、白色、定位用 */}
-          <h2 className="mt-5 text-base font-semibold text-slate-200 sm:text-lg lg:text-xl">
+          {/* 主标题 — 接金句字号、白色、定位用 */}
+          <h2 className="mt-5 text-3xl font-semibold text-slate-200 sm:text-4xl lg:text-5xl xl:text-[3.7rem]">
             用数据驱动的 AI 视频创作平台
           </h2>
 
-          {/* 三行金句 — 大字、节奏分明、最后一行带跳动 ❤️ */}
-          <p className="mt-5 text-3xl font-black leading-[1.1] tracking-tight text-white sm:text-4xl lg:text-5xl xl:text-[3.7rem]">
+          {/* 三行金句 — 比主题小一档、节奏分明、最后一行带跳动 ❤️ */}
+          <p className="mt-5 text-2xl font-black leading-[1.1] tracking-tight text-white sm:text-3xl lg:text-4xl xl:text-5xl">
             <span className="block">别拍脑袋，</span>
             <span className="block">
               <span
