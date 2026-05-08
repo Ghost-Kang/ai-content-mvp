@@ -106,6 +106,23 @@ describe('NodeRunner timeout guard', () => {
     }));
   });
 
+  it('clears completedAt on re-run so a previously-done step does not retain stale completed_at when re-entering running', async () => {
+    // Regression: prod 2026-05-09 saw `completed_at < started_at` on stuck
+    // storyboard rows because upsertStepRow updated startedAt on re-run
+    // without clearing the previous run's completedAt.
+    const runner = new NeverFinishesNodeRunner();
+
+    await expect(runner.run(baseCtx)).rejects.toBeInstanceOf(NodeError);
+
+    // The 'running' update (the upsert path that hits an existing row)
+    // must explicitly null out completedAt, not just update startedAt.
+    const runningUpdate = updateSets.find((s) => s.status === 'running');
+    expect(runningUpdate).toBeDefined();
+    expect(runningUpdate).toHaveProperty('completedAt', null);
+    expect(runningUpdate).toHaveProperty('errorMsg', null);
+    expect(runningUpdate?.startedAt).toBeInstanceOf(Date);
+  });
+
   it('does NOT apply withTimeout to the video node — even if execute outlives the env timeout, the node completes successfully', async () => {
     const runner = new SlowVideoNodeRunner();
 

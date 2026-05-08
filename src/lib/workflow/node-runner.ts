@@ -243,12 +243,18 @@ export abstract class NodeRunner<I = unknown, O = unknown> {
   ): Promise<{ id: string }> {
     const found = await this.findExistingStep(ctx);
     if (found) {
+      // Re-run path: clear completedAt too. Without this, a previously-done
+      // step re-entering 'running' (cascade dirty + redispatch) leaves the
+      // old completedAt in place — observable in prod as completed_at <
+      // started_at on stuck rows, and silently breaks any "duration since
+      // start" calculation that COALESCEs on completedAt.
       await db
         .update(workflowSteps)
         .set({
-          status:    initialStatus,
-          startedAt: new Date(),
-          errorMsg:  null,
+          status:      initialStatus,
+          startedAt:   new Date(),
+          completedAt: null,
+          errorMsg:    null,
         })
         .where(eq(workflowSteps.id, found.id));
       return found;
