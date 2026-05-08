@@ -1,8 +1,0 @@
-{
-  "crons": [
-    {
-      "path": "/api/admin/watchdog?apply=1",
-      "schedule": "*/15 * * * *"
-    }
-  ]
-}

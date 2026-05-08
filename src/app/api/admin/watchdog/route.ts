@@ -1,10 +1,18 @@
-// Vercel Cron entry point for the stuck-run watchdog.
+// Stuck-run watchdog HTTP entry point.
 //
-// Triggered by `vercel.json` cron schedule. Auth model:
+// Trigger options (pick one — none are wired by default):
+//   - Vercel Cron: add `{ "crons": [{ "path": "/api/admin/watchdog?apply=1",
+//     "schedule": "*/15 * * * *" }] }` to vercel.json. Requires Pro plan
+//     (Hobby = daily cron only); CRON_SECRET must be set in env so Vercel
+//     auto-injects `Authorization: Bearer ${CRON_SECRET}`.
+//   - GitHub Actions: schedule a workflow that curls this URL with the
+//     same bearer header. Free, supports any cron expression, ~5-15min lag.
+//   - Local cron / pnpm prod:watchdog --apply: bypass HTTP entirely,
+//     same logic via shared `lib/admin/stuck-runs.ts`.
+//
+// Auth model:
 //   - In production: require `Authorization: Bearer ${CRON_SECRET}`.
-//     Vercel automatically sends this header on cron-triggered requests
-//     when CRON_SECRET is set as an env var. Manual GETs from the
-//     internet without the header are 401'd.
+//     Manual GETs from the internet without the header are 401'd.
 //   - When CRON_SECRET is not set we fail closed with 503 in production,
 //     mirroring the same posture as the QStash worker route in
 //     `api/workflow/run/route.ts`.
@@ -12,9 +20,9 @@
 // Behavior:
 //   - GET (no apply): dry-run, returns findings only — used for ad-hoc
 //     checks via curl + token.
-//   - GET ?apply=1: detection + flip — this is what the cron schedule hits.
-//   - Always returns JSON with { ts, apply, findings, fixes } so cron logs
-//     are searchable for "fixes":[ entries.
+//   - GET ?apply=1: detection + flip — this is what schedulers should hit.
+//   - Always returns JSON with { ts, apply, findings, fixes } so logs are
+//     searchable for "fixes":[ entries.
 
 import { NextRequest } from 'next/server';
 import { detectAndRecover } from '@/lib/admin/stuck-runs';
