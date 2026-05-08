@@ -19,16 +19,22 @@ const ROUTING_TABLE: Record<
   LLMRegion,
   Record<LLMRequest['intent'], ProviderName[]>
 > = {
-  // CN — kimi primary, qwen + ernie as domestic fallback (audit #5, 2026-04-30).
-  // Kimi rate-limit / outage used to mean 100% CN failures; the fallback chain
-  // means a single provider hiccup degrades to slower-but-working domestic
-  // providers. assertCnRoutingCompliance below guarantees no foreign provider
-  // ever sneaks in here.
+  // CN — kimi primary, deepseek as immediate fallback, qwen + ernie below.
+  // History:
+  //   - audit #5 (2026-04-30): added qwen + ernie behind kimi.
+  //   - 2026-05-08 incident: prod was missing QWEN_API_KEY + ERNIE_API_KEY,
+  //     so kimi was effectively unsupported when its 60s timeout fired.
+  //     deepseek added to give the chain a real working fallback while the
+  //     qwen / ernie keys are pending. Order matters — chain is walked
+  //     left-to-right, missing-key failures will trip qwen/ernie breakers
+  //     but deepseek (key set) catches everything in front of them.
+  // assertCnRoutingCompliance below guarantees no foreign provider ever
+  // sneaks in here.
   CN: {
-    strategy:      ['kimi', 'qwen', 'ernie'],
-    draft:         ['kimi', 'qwen', 'ernie'],
-    channel_adapt: ['kimi', 'qwen', 'ernie'],
-    diff_annotate: ['kimi', 'qwen', 'ernie'],
+    strategy:      ['kimi', 'deepseek', 'qwen', 'ernie'],
+    draft:         ['kimi', 'deepseek', 'qwen', 'ernie'],
+    channel_adapt: ['kimi', 'deepseek', 'qwen', 'ernie'],
+    diff_annotate: ['kimi', 'deepseek', 'qwen', 'ernie'],
   },
   INTL: {
     strategy:      ['kimi', 'openai'],

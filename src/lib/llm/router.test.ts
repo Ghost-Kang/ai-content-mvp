@@ -52,6 +52,16 @@ describe('CN fallback chain (audit #5)', () => {
     expect(chain).toContain('qwen');
     expect(chain).toContain('ernie');
   });
+
+  it('places deepseek as the immediate fallback after kimi (2026-05-08 incident)', () => {
+    // Order matters — when kimi 60s-times-out we want a working domestic
+    // provider, not a missing-key qwen/ernie that just trips its breaker.
+    for (const intent of ['strategy', 'draft', 'channel_adapt', 'diff_annotate'] as const) {
+      const chain = resolveProviderChain(req({ region: 'CN', intent }));
+      expect(chain[0]).toBe('kimi');
+      expect(chain[1]).toBe('deepseek');
+    }
+  });
 });
 
 describe('preferredProvider override', () => {

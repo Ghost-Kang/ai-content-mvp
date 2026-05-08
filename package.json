@@ -48,6 +48,7 @@
     "wf:probe:storyboard": "tsx --env-file=.env.local scripts/probe-storyboard-v0.ts",
     "wf:fixture:script": "tsx --env-file=.env.local scripts/generate-script-fixture.ts",
     "llm:probe": "tsx --env-file=.env.local scripts/probe-llm.ts",
+    "llm:probe:deepseek": "tsx --env-file=.env.local scripts/probe-deepseek.ts",
     "vg:test:seedance": "tsx --env-file=.env.local scripts/test-seedance-client.ts",
     "vg:probe:seedance": "tsx --env-file=.env.local scripts/probe-seedance-poc.ts",
     "ds:test:newrank": "tsx scripts/test-newrank-client.ts",

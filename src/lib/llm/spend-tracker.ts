@@ -22,6 +22,10 @@ function costPer1kTokensFen(provider: ProviderName): number {
       return Number(process.env.LLM_COST_PER_1K_FEN_QWEN ?? 12);
     case 'ernie':
       return Number(process.env.LLM_COST_PER_1K_FEN_ERNIE ?? 12);
+    case 'deepseek':
+      // deepseek-chat 实际 ~¥0.27-1.10/M tokens (≈0.03-0.11 分/1K).
+      // Default 5 ≈ 50× cap on actual; raise via env if usage flips heavy-output.
+      return Number(process.env.LLM_COST_PER_1K_FEN_DEEPSEEK ?? 5);
     default:
       return 30;
   }

@@ -44,6 +44,13 @@ export function getProviderConfig(name: ProviderName): ProviderConfig {
         model:      process.env.KIMI_MODEL ?? 'moonshot-v1-32k',
         maxRetries: 3,
       };
+    case 'deepseek':
+      return {
+        apiKey:     requireEnv('DEEPSEEK_API_KEY'),
+        baseUrl:    'https://api.deepseek.com/v1',
+        model:      process.env.DEEPSEEK_MODEL ?? 'deepseek-chat',
+        maxRetries: 3,
+      };
   }
 }
 

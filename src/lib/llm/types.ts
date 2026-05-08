@@ -8,7 +8,8 @@ export type ProviderName =
   | 'anthropic'
   | 'ernie'
   | 'qwen'
-  | 'kimi';
+  | 'kimi'
+  | 'deepseek';
 
 export type ContentChannel = 'douyin' | 'xiaohongshu';
 

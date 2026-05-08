@@ -5,6 +5,7 @@ import { OpenAIProvider } from './providers/openai';
 import { QwenProvider } from './providers/qwen';
 import { KimiProvider } from './providers/kimi';
 import { ErnieProvider } from './providers/ernie';
+import { DeepSeekProvider } from './providers/deepseek';
 
 // Module-level singletons — instantiated once, reused across requests in same process
 const providers = new Map<ProviderName, BaseLLMProvider>();
@@ -16,6 +17,7 @@ function buildProvider(name: ProviderName): BaseLLMProvider {
     case 'qwen':      return new QwenProvider();
     case 'kimi':      return new KimiProvider();
     case 'ernie':     return new ErnieProvider();
+    case 'deepseek':  return new DeepSeekProvider();
   }
 }
 
