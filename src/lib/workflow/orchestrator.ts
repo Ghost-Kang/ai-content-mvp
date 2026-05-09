@@ -38,6 +38,27 @@ export interface RunResult {
   qualityIssues: Partial<Record<NodeType, string>>;
 }
 
+/**
+ * Recover the videoCount contribution of a hydrated step (= one whose result
+ * was persisted by a prior dispatch and is being skipped on resume).
+ *
+ * Why this exists: workflow_steps stores cost_fen as a column but has no
+ * video_count column, so the hydrate-and-skip branch in `run()` cannot read
+ * the count back from the row directly. The video node persists its frames
+ * array as `output_json.frames`, and `videoCount === frames.length` by
+ * construction (see `nodes/video.ts`: `videoCount: rendered.length`).
+ *
+ * Only the `video` node ever contributes to videoCount, so other node types
+ * always return 0 here even if their output_json happened to contain a
+ * `frames` field.
+ */
+export function hydratedVideoCount(nodeType: NodeType, outputJson: unknown): number {
+  if (nodeType !== 'video') return 0;
+  if (!outputJson || typeof outputJson !== 'object') return 0;
+  const frames = (outputJson as { frames?: unknown }).frames;
+  return Array.isArray(frames) ? frames.length : 0;
+}
+
 export class WorkflowOrchestrator {
   constructor(private readonly nodes: ReadonlyArray<NodeRunner>) {
     if (nodes.length === 0) {
@@ -195,9 +216,10 @@ export class WorkflowOrchestrator {
           ctx.upstreamOutputs[node.descriptor.nodeType] = persisted.outputJson;
           nodeOutputs[node.descriptor.nodeType]         = persisted.outputJson;
         }
-        // Display total reflects full run lifetime; monthly bump does NOT
+        // Display totals reflect full run lifetime; monthly bump does NOT
         // re-accrue (the prior dispatch already bumped this step's cost).
-        totalCostFen += persisted.costFen ?? 0;
+        totalCostFen    += persisted.costFen ?? 0;
+        totalVideoCount += hydratedVideoCount(node.descriptor.nodeType, persisted.outputJson);
         continue;
       }
 
