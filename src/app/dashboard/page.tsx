@@ -38,9 +38,7 @@ export default async function DashboardPage() {
               </span>
             </p>
             <p className="mt-6 max-w-2xl text-base leading-7 text-slate-300">
-              主入口从下方 <span className="font-semibold text-white">「新建视频工作流」</span> 开始 —— 输入一个主题，AI 自动跑通
-              <span className="font-semibold text-white">选题 → 脚本 → 分镜 → 视频 → 剪映导出</span>
-              5 个节点，约 <span className="font-semibold text-white">12 分钟</span> 拿到可直接发布的素材包；暂时没思路就先到 <span className="font-semibold text-white">「热门选题雷达」</span> 拉爆点预填回工作流。
+              从 <span className="font-semibold text-white">「新建视频工作流」</span> 开始，约 <span className="font-semibold text-white">12 分钟</span> 拿到剪映素材包；没思路先去 <span className="font-semibold text-white">「热门选题雷达」</span> 拉爆点。
             </p>
           </div>
         </section>
