@@ -9,6 +9,10 @@ import {
 import { PipelineAnimation } from '@/components/layout/PipelineAnimation';
 import { isAuthBypassed } from '@/lib/auth/bypass';
 
+// Bypass 模式下需要 redirect() 在请求期执行 (而非 build 期 SSG 烘成
+// 静态 redirect — 那条路径在 Vercel 上会丢 Location header).
+export const dynamic = 'force-dynamic';
+
 export default async function Home() {
   // Seed 内测旁路: 直接跳到 dashboard, 跳过落地页 CTA.
   if (isAuthBypassed()) redirect('/dashboard');
