@@ -2,7 +2,7 @@ import Link from 'next/link';
 import { currentUser } from '@clerk/nextjs/server';
 import { UserButton } from '@clerk/nextjs';
 import { isAdminUser } from '@/lib/admin/is-admin';
-import { TechBadge, TechCard, TechHeader, TechPageShell } from '@/components/layout/TechPage';
+import { TechCard, TechHeader, TechPageShell } from '@/components/layout/TechPage';
 
 export const dynamic = 'force-dynamic';
 
@@ -17,8 +17,7 @@ export default async function DashboardPage() {
       <main className="mx-auto max-w-7xl px-6 py-10">
         <section>
           <div>
-            <TechBadge tone="violet">Creator Command Center</TechBadge>
-            <h1 className="mt-5 text-3xl font-semibold text-slate-200 sm:text-4xl lg:text-5xl">
+            <h1 className="text-3xl font-semibold text-slate-200 sm:text-4xl lg:text-5xl">
               用数据驱动的 AI 视频创作平台
             </h1>
             <p className="mt-5 text-2xl font-black leading-[1.1] tracking-tight text-white sm:text-3xl lg:text-4xl">
