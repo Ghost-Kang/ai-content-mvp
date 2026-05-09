@@ -16,6 +16,7 @@ import { auth, currentUser } from '@clerk/nextjs/server';
 import { db, users, tenants } from '@/db';
 import { eq } from 'drizzle-orm';
 import type { Context } from './trpc';
+import { isAuthBypassed, SEED_CLERK_USER_ID } from '@/lib/auth/bypass';
 
 const EMPTY_CONTEXT: Context = {
   tenantId:    '',
@@ -27,13 +28,16 @@ const EMPTY_CONTEXT: Context = {
 
 export async function createContext(): Promise<Context> {
   const { userId: clerkUserId } = await auth();
-  if (!clerkUserId) return EMPTY_CONTEXT;
+  // Seed 内测旁路: 没有真实 Clerk session 时 fall back 到共享 seed 用户.
+  // 真实 session 优先, operator 仍可正常登入测试 Clerk 链路.
+  const effectiveClerkUserId = clerkUserId ?? (isAuthBypassed() ? SEED_CLERK_USER_ID : null);
+  if (!effectiveClerkUserId) return EMPTY_CONTEXT;
 
-  const existing = await lookupUser(clerkUserId);
+  const existing = await lookupUser(effectiveClerkUserId);
   if (existing) return existing;
 
   // First sign-in — provision a solo tenant + user
-  return await provisionUser(clerkUserId);
+  return await provisionUser(effectiveClerkUserId);
 }
 
 async function lookupUser(clerkUserId: string): Promise<Context | null> {

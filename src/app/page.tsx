@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { redirect } from 'next/navigation';
 import { auth } from '@clerk/nextjs/server';
 import {
   TechBadge,
@@ -6,8 +7,12 @@ import {
   TechPageShell,
 } from '@/components/layout/TechPage';
 import { PipelineAnimation } from '@/components/layout/PipelineAnimation';
+import { isAuthBypassed } from '@/lib/auth/bypass';
 
 export default async function Home() {
+  // Seed 内测旁路: 直接跳到 dashboard, 跳过落地页 CTA.
+  if (isAuthBypassed()) redirect('/dashboard');
+
   const { userId } = await auth();
   const isSignedIn = Boolean(userId);
 

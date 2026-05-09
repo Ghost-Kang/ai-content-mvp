@@ -1,5 +1,6 @@
 import { clerkMiddleware, createRouteMatcher } from '@clerk/nextjs/server';
 import { NextResponse } from 'next/server';
+import { isAuthBypassed } from '@/lib/auth/bypass';
 
 // `/dev(.*)` is bypassed only in development builds — used by Playwright
 // to mount UI components against fixture data without going through Clerk
@@ -33,6 +34,10 @@ if (process.env.NODE_ENV === 'development') {
 const isPublicRoute = createRouteMatcher(PUBLIC_PATTERNS);
 
 export default clerkMiddleware(async (auth, req) => {
+  // Seed 内测旁路 — BYPASS_AUTH=true 时所有路由免登录,
+  // tRPC context 会用 SEED_CLERK_USER_ID 顶上.
+  if (isAuthBypassed()) return;
+
   if (isPublicRoute(req)) return;
 
   const { userId } = await auth();
