@@ -50,23 +50,21 @@ async function main() {
   const sql = postgres(url, { prepare: false, max: 1, connect_timeout: 15 });
 
   try {
-    // Run-level: only count `done` runs (failed runs would skew downward
+    // Run-level n: only count `done` runs (failed runs would skew downward
     // because they fail fast, and skew upward if they hit timeout — both
-    // worse than excluding them entirely).
-    const runRows = await sql<{ n: number; p50: number; p95: number }[]>`
-      SELECT
-        COUNT(*)::int AS n,
-        COALESCE(PERCENTILE_CONT(0.5)  WITHIN GROUP (
-          ORDER BY EXTRACT(EPOCH FROM (completed_at - created_at)))::int, 0) AS p50,
-        COALESCE(PERCENTILE_CONT(0.95) WITHIN GROUP (
-          ORDER BY EXTRACT(EPOCH FROM (completed_at - created_at)))::int, 0) AS p95
+    // worse than excluding them entirely). P50/P95 are NOT taken from
+    // (completed_at - created_at) — that wall time includes Solo Review
+    // user thinking time, which LAUNCH_CHECKLIST §"Happy path E2E" excludes.
+    // Run P50/P95 below = sum of per-node percentiles, matching the doc table.
+    const runCountRows = await sql<{ n: number }[]>`
+      SELECT COUNT(*)::int AS n
       FROM workflow_runs
       WHERE status = 'done'
         AND completed_at IS NOT NULL
         AND (created_at AT TIME ZONE 'Asia/Shanghai')::date
             = (NOW() AT TIME ZONE 'Asia/Shanghai')::date
     `;
-    const run = runRows[0]!;
+    const runN = runCountRows[0]!.n;
 
     // Step-level: by node_type, only `done` steps.
     const stepRows = await sql<{ node_type: string; n: number; p50: number; p95: number }[]>`
@@ -92,11 +90,18 @@ async function main() {
     `;
     const cnDate = cnDateRow[0]!.d;
 
+    const steps = stepRows.map((s) => ({ node: s.node_type, n: s.n, p50: s.p50, p95: s.p95 }));
+    const run: RunStat = {
+      n:   runN,
+      p50: steps.reduce((acc, s) => acc + s.p50, 0),
+      p95: steps.reduce((acc, s) => acc + s.p95, 0),
+    };
+
     const snap: Snapshot = {
       ts:    new Date().toISOString(),
       cnDate,
       run,
-      steps: stepRows.map((s) => ({ node: s.node_type, n: s.n, p50: s.p50, p95: s.p95 })),
+      steps,
       redLineP50Min: 7,
       redLineP95Min: 10,
       redLineP50Pass: run.p50 > 0 && run.p50 < 7 * 60,

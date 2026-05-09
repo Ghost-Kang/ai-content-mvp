@@ -124,3 +124,11 @@
 - ☐ 22:00 三件套（`cap:watch` / `prod:today` / `perf:snapshot`）
 
 **情绪温度**：—（22:00 回填）
+
+<!-- perf-auto:2026-05-09 -->
+### auto-perf · 2026-05-09
+
+- runs done: **2**
+- run P50: **2m24s** ✅ (red line 7min)
+- run P95: **2m32s** ✅ (red line 10min)
+- per-node P50/P95: topic=1s/1s · script=39s/42s · storyboard=25s/26s · video=39s/40s · export=40s/43s
