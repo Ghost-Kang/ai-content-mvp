@@ -27,6 +27,9 @@ const PUBLIC_PATTERNS = [
   // bypassing Clerk here, Vercel Cron / GitHub Actions / curl all get 307'd
   // to /sign-in and the route handler never runs.
   '/api/admin/watchdog',
+  // 2026-05-09 revalidate-trending — manual cache-bust for NewRank
+  // trending cache. Same bearer-token model as /watchdog.
+  '/api/admin/revalidate-trending',
 ];
 if (process.env.NODE_ENV === 'development') {
   PUBLIC_PATTERNS.push('/dev(.*)');

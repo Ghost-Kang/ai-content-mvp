@@ -104,15 +104,56 @@ async function fetchOnePlatform(
   return { items };
 }
 
-/** Cached fetch of trending items for one (date, platform) pair. */
-const fetchCachedOnePlatform = unstable_cache(
-  async (date: string, platform: NewrankPlatform) => fetchOnePlatform(date, platform),
+/**
+ * Sentinel error to bypass `unstable_cache`'s memoization on soft failures.
+ *
+ * Why: `fetchOnePlatform` returns errors as a soft `{items:[], error}` shape
+ * so one failing platform doesn't poison the others. But returning that
+ * shape from inside `unstable_cache` would memoize the failure for 12h,
+ * locking every subsequent user into the same error until TTL expires
+ * (witnessed in prod 2026-05-09 — DY 5/6 cached "fetch failed" 全员可见).
+ *
+ * `unstable_cache` does not memoize thrown errors, so we throw a sentinel
+ * inside the cached fn and re-soften it in the outer wrapper.
+ */
+class TransientFetchFailure extends Error {
+  constructor(public readonly softError: string) {
+    super(softError);
+    this.name = 'TransientFetchFailure';
+  }
+}
+
+const fetchCachedOnePlatformInner = unstable_cache(
+  async (date: string, platform: NewrankPlatform) => {
+    const result = await fetchOnePlatform(date, platform);
+    if (result.error) {
+      // Bypass cache; outer wrapper re-softens. Each subsequent caller
+      // re-attempts the network — acceptable because the alternative
+      // (12h cache poisoning) is much worse.
+      throw new TransientFetchFailure(result.error);
+    }
+    return result;
+  },
   ['newrank-trending-one'],
   {
     revalidate: 60 * 60 * 12, // 12h — file is static once published; T-3 is never going to change.
     tags:       ['newrank-trending'],
   },
 );
+
+async function fetchCachedOnePlatform(
+  date: string,
+  platform: NewrankPlatform,
+): Promise<{ items: NormalizedTrendingItem[]; error?: string }> {
+  try {
+    return await fetchCachedOnePlatformInner(date, platform);
+  } catch (e) {
+    if (e instanceof TransientFetchFailure) {
+      return { items: [], error: e.softError };
+    }
+    return { items: [], error: (e as Error)?.message ?? String(e) };
+  }
+}
 
 /**
  * Fetch trending items for the given date across multiple platforms in
