@@ -2,13 +2,12 @@ import Link from 'next/link';
 import { currentUser } from '@clerk/nextjs/server';
 import { UserButton } from '@clerk/nextjs';
 import { isAdminUser } from '@/lib/admin/is-admin';
-import { TechBadge, TechCard, TechHeader, TechPageShell, TechStat } from '@/components/layout/TechPage';
+import { TechBadge, TechCard, TechHeader, TechPageShell } from '@/components/layout/TechPage';
 
 export const dynamic = 'force-dynamic';
 
 export default async function DashboardPage() {
   const user = await currentUser();
-  const email = user?.emailAddresses[0]?.emailAddress ?? '';
   const showAdminCard = isAdminUser(user?.id);
 
   return (
@@ -16,21 +15,34 @@ export default async function DashboardPage() {
       <TechHeader right={<UserButton afterSignOutUrl="/" />} />
 
       <main className="mx-auto max-w-7xl px-6 py-10">
-        <section className="grid gap-8 lg:grid-cols-[0.9fr_1.1fr] lg:items-end">
+        <section>
           <div>
             <TechBadge tone="violet">Creator Command Center</TechBadge>
-            <h1 className="mt-5 text-4xl font-black tracking-tight text-white sm:text-5xl">
-              今天从哪里开始创作？
+            <h1 className="mt-5 text-3xl font-semibold text-slate-200 sm:text-4xl lg:text-5xl">
+              用数据驱动的 AI 视频创作平台
             </h1>
-            <p className="mt-4 max-w-2xl text-base leading-7 text-slate-300">
-              已登录 {email || '当前账号'}。把热门选题、完整视频工作流和快速脚本创作集中到一个控制台，
-              选择入口后进入对应页面继续操作。
+            <p className="mt-5 text-2xl font-black leading-[1.1] tracking-tight text-white sm:text-3xl lg:text-4xl">
+              <span className="block">别拍脑袋，</span>
+              <span className="block">
+                <span
+                  className="bg-gradient-to-r from-cyan-200 via-fuchsia-200 to-emerald-200 bg-clip-text text-transparent"
+                  style={{ WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}
+                >
+                  数据找爆点
+                </span>
+                ，
+              </span>
+              <span className="mt-1 flex flex-wrap items-baseline gap-x-2">
+                AI
+                <BeatingHeart />
+                一键成片。
+              </span>
             </p>
-          </div>
-          <div className="grid gap-3 sm:grid-cols-3">
-            <TechStat label="热点入口" value="4 平台" />
-            <TechStat label="主工作流" value="5 节点" />
-            <TechStat label="视频状态" value="ETA 追踪" />
+            <p className="mt-6 max-w-2xl text-base leading-7 text-slate-300">
+              主入口从下方 <span className="font-semibold text-white">「新建视频工作流」</span> 开始 —— 输入一个主题，AI 自动跑通
+              <span className="font-semibold text-white">选题 → 脚本 → 分镜 → 视频 → 剪映导出</span>
+              5 个节点，约 <span className="font-semibold text-white">12 分钟</span> 拿到可直接发布的素材包；暂时没思路就先到 <span className="font-semibold text-white">「热门选题雷达」</span> 拉爆点预填回工作流。
+            </p>
           </div>
         </section>
 
@@ -61,10 +73,10 @@ export default async function DashboardPage() {
           />
           <LaunchCard
             href="/runs"
-            eyebrow="Run Console"
-            title="工作流运行台"
-            body="查看历史 run、下载导出包、追踪视频生成进度和失败原因。"
-            cta="查看运行"
+            eyebrow="Video History"
+            title="视频生成记录"
+            body="查看每条视频生成记录、下载剪映素材包、追踪生成进度与失败原因。"
+            cta="查看记录"
             tone="amber"
           />
           {showAdminCard ? (
@@ -121,6 +133,29 @@ function LaunchCard({
         </p>
       </TechCard>
     </Link>
+  );
+}
+
+function BeatingHeart() {
+  return (
+    <span
+      role="img"
+      aria-label="爱心跳动"
+      className="relative inline-flex translate-y-[-0.05em] items-center justify-center"
+    >
+      <span
+        aria-hidden
+        className="absolute h-[1.2em] w-[1.2em] rounded-full bg-rose-400/35 blur-xl motion-safe:animate-heart-glow"
+      />
+      <svg
+        viewBox="0 0 24 24"
+        className="relative h-[0.95em] w-[0.95em] text-rose-400 motion-safe:animate-heartbeat motion-safe:[transform-box:fill-box] motion-safe:[transform-origin:center]"
+        fill="currentColor"
+        aria-hidden
+      >
+        <path d="M12 21s-7.5-4.6-9.5-10.2C1 7 4 3.5 7.5 3.5c2 0 3.6 1 4.5 2.5.9-1.5 2.5-2.5 4.5-2.5 3.5 0 6.5 3.5 5 7.3C19.5 16.4 12 21 12 21z" />
+      </svg>
+    </span>
   );
 }
 
