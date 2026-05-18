@@ -203,7 +203,10 @@ export class ExportNodeRunner extends NodeRunner<ExportInput, ExportNodeOutput> 
         'still persisted in workflow_steps.output_json.',
       );
     } else {
+      const buildStart = Date.now();
       const built = await this.buildBundleWithRetry(input, generatedAt);
+      const buildMs = Date.now() - buildStart;
+      const uploadStart = Date.now();
       const uploaded = await (this.deps.uploader ?? uploadExportBundle)({
         tenantId: ctx.tenantId,
         runId:    ctx.runId,
@@ -220,6 +223,13 @@ export class ExportNodeRunner extends NodeRunner<ExportInput, ExportNodeOutput> 
         }
         throw e;
       });
+
+      const uploadMs = Date.now() - uploadStart;
+      console.info(
+        `[export] runId=${ctx.runId} frames=${input.frames.length} ` +
+        `build=${buildMs}ms upload=${uploadMs}ms ` +
+        `compressed=${built.compressedBytes}B missing=${built.missingFrames.length}`,
+      );
 
       bundle = {
         signedUrl:     uploaded.signedUrl,

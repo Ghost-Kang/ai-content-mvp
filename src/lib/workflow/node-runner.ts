@@ -33,7 +33,7 @@ export function nodeTimeoutMs(nodeType: string): number {
     case 'topic':      return Number(process.env.WORKFLOW_TOPIC_NODE_TIMEOUT_MS ?? 30_000);
     case 'script':     return Number(process.env.WORKFLOW_SCRIPT_NODE_TIMEOUT_MS ?? 120_000);
     case 'storyboard': return Number(process.env.WORKFLOW_STORYBOARD_NODE_TIMEOUT_MS ?? 120_000);
-    case 'export':     return Number(process.env.WORKFLOW_EXPORT_NODE_TIMEOUT_MS ?? 60_000);
+    case 'export':     return Number(process.env.WORKFLOW_EXPORT_NODE_TIMEOUT_MS ?? 180_000);
     case 'video':      return Number(
       process.env.WORKFLOW_VIDEO_NODE_TIMEOUT_MS
         ?? (process.env.WORKFLOW_VIDEO_MAX_FRAMES_PER_INVOCATION ? 290_000 : 900_000),

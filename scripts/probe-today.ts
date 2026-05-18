@@ -88,7 +88,7 @@ async function main() {
         COUNT(*)::int AS calls,
         SUM(cost_fen)::int AS total_fen
       FROM llm_spend_daily
-      WHERE day_cn = (NOW() AT TIME ZONE 'Asia/Shanghai')::date
+      WHERE spend_date = (NOW() AT TIME ZONE 'Asia/Shanghai')::date::text
       GROUP BY provider
       ORDER BY total_fen DESC
     `;
